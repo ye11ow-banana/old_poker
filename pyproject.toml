@@ -10,6 +10,9 @@ python = "^3.11"
 fastapi = "^0.100.1"
 sqlalchemy = "^2.0.19"
 alembic = "^1.11.1"
+uvicorn = "^0.23.2"
+asyncpg = "^0.28.0"
+python-decouple = "^3.8"
 
 
 [tool.poetry.group.dev.dependencies]
@@ -20,3 +23,22 @@ pytest = "^7.4.0"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+mypy_path = ["src", "tests"]
+check_untyped_defs = true
+disallow_untyped_calls = true
+disallow_untyped_decorators = true
+ignore_missing_imports = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+warn_unreachable = true
+warn_no_return = true
+warn_return_any = true
+exclude = ["migrations"]
+
+[tool.black]
+line-length = 79
+target-version = ["py311"]
+exclude = "migrations"
