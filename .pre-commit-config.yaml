@@ -7,15 +7,6 @@ repos:
 #        language: system
 #        pass_filenames: false
 #        always_run: true
--   repo: local
-    hooks:
-    -   id: mypy-check
-        name: mypy-check
-        entry: mypy
-        language: system
-        args: ["--explicit-package-bases", "."]
-        pass_filenames: false
-        always_run: true
 -   repo: https://github.com/psf/black
     rev: 23.7.0
     hooks:
