@@ -13,8 +13,8 @@ from repository import IRepository
 
 
 class IAuthenticationService(ABC):
-    def __init__(self, authentication_repo: IRepository):
-        self._authentication_repo: IRepository = authentication_repo
+    def __init__(self, user_repo: IRepository):
+        self._user_repo: IRepository = user_repo
         self._pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
     @abstractmethod
@@ -43,7 +43,7 @@ class IAuthenticationService(ABC):
 
     async def _get_db_user_by_username(self, username: str) -> UserInDB:
         try:
-            user = await self._authentication_repo.get("username", username)
+            user = await self._user_repo.get(username=username)
         except NoResultFound:
             raise NoResultFound(
                 f"User with this username {username} not found"
