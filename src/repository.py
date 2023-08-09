@@ -1,8 +1,10 @@
 from abc import ABC, abstractmethod
+from typing import Type
 
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from database import Base, async_session_maker
+from database import Base
 
 
 class IRepository(ABC):
@@ -12,14 +14,16 @@ class IRepository(ABC):
 
 
 class SQLAlchemyRepository(IRepository):
-    model: Base | None = None
+    model: Type[Base] | None = None
+
+    def __init__(self, session: AsyncSession):
+        self._session = session
 
     async def get(self, **data: str | int):
         if not self.model:
             raise NotImplementedError(
                 "Model not defined in SQLAlchemyRepository"
             )
-        async with async_session_maker() as session:
-            stmt = select(self.model).filter_by(**data)
-            res = await session.execute(stmt)
-            return res.scalar_one()
+        stmt = select(self.model).filter_by(**data)
+        res = await self._session.execute(stmt)
+        return res.scalar_one()

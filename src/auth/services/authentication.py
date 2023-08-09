@@ -9,12 +9,12 @@ from sqlalchemy.orm.exc import NoResultFound
 from auth.exceptions import AuthenticationException
 from auth.schemas import Token, User, UserInDB
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
-from repository import IRepository
+from unitofwork import IUnitOfWork
 
 
 class IAuthenticationService(ABC):
-    def __init__(self, user_repo: IRepository):
-        self._user_repo: IRepository = user_repo
+    def __init__(self, uof: IUnitOfWork):
+        self._uof: IUnitOfWork = uof
         self._pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
     @abstractmethod
@@ -43,7 +43,7 @@ class IAuthenticationService(ABC):
 
     async def _get_db_user_by_username(self, username: str) -> UserInDB:
         try:
-            user = await self._user_repo.get(username=username)
+            user = await self._uof.users.get(username=username)
         except NoResultFound:
             raise NoResultFound(
                 f"User with this username {username} not found"
@@ -54,7 +54,8 @@ class IAuthenticationService(ABC):
 class JWTAuthenticationService(IAuthenticationService):
     async def authenticate_user(self, username: str, password: str) -> Token:
         try:
-            db_user = await self._get_db_user_by_username(username)
+            async with self._uof:
+                db_user = await self._get_db_user_by_username(username)
             await self._verify_password(password, db_user.hashed_password)
         except (NoResultFound, ValueError):
             raise AuthenticationException("Incorrect username or password")
@@ -66,7 +67,8 @@ class JWTAuthenticationService(IAuthenticationService):
 
     async def get_current_user(self, token: str) -> User:
         try:
-            db_user = await self._get_db_user_by_jwt(token)
+            async with self._uof:
+                db_user = await self._get_db_user_by_jwt(token)
         except JWTError:
             raise AuthenticationException("Could not validate credentials")
         return await self._get_user_from_db_user(db_user)

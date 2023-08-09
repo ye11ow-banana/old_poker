@@ -1,15 +1,8 @@
-from typing import Annotated
+from fastapi import APIRouter
 
-from fastapi import APIRouter, Depends, HTTPException
-
-from auth.dependencies import (
-    AuthenticatedUser,
-    authentication_service,
-    http_exception,
-)
+from auth.dependencies import AuthenticatedUserDep, UOWDep, http_exception_dep
 from auth.exceptions import AuthenticationException
-from auth.schemas import User
-from auth.services.authentication import IAuthenticationService
+from auth.services.authentication import JWTAuthenticationService
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -18,22 +11,18 @@ router = APIRouter(prefix="/auth", tags=["Auth"])
 async def login(
     username: str,
     password: str,
-    http_exception_: Annotated[HTTPException, Depends(http_exception)],
-    authentication_service_: Annotated[
-        IAuthenticationService, Depends(authentication_service)
-    ],
+    uow: UOWDep,
+    http_exception: http_exception_dep,
 ):
     try:
-        token = await authentication_service_.authenticate_user(
+        token = await JWTAuthenticationService(uow).authenticate_user(
             username, password
         )
     except AuthenticationException:
-        raise http_exception_
+        raise http_exception
     return token
 
 
 @router.get("/users/me/")
-async def get_current_user(
-    user: Annotated[User, Depends(AuthenticatedUser())]
-):
+async def get_current_user(user: AuthenticatedUserDep):
     return user
