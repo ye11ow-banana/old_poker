@@ -40,7 +40,6 @@ warn_redundant_casts = true
 warn_unused_configs = true
 warn_unreachable = true
 warn_no_return = true
-warn_return_any = true
 exclude = ["migrations"]
 
 [tool.black]
