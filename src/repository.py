@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Type
+from typing import Sequence, Type
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,21 +9,26 @@ from database import Base
 
 class IRepository(ABC):
     @abstractmethod
-    async def get(self, **data: str | int):
+    async def get(
+        self, /, returns: Sequence[str] | None = None, **data: str | int
+    ) -> Base:
         raise NotImplementedError
 
 
 class SQLAlchemyRepository(IRepository):
-    model: Type[Base] | None = None
+    model: Type[Base]
 
     def __init__(self, session: AsyncSession):
         self._session = session
 
-    async def get(self, **data: str | int):
-        if not self.model:
-            raise NotImplementedError(
-                "Model not defined in SQLAlchemyRepository"
-            )
-        stmt = select(self.model).filter_by(**data)
+    async def get(
+        self, /, returns: Sequence[str] | None = None, **data: str | int
+    ) -> Base:
+        if returns is None:
+            returns = [c.name for c in self.model.__table__.columns]
+        stmt = select(*[getattr(self.model, c) for c in returns]).filter_by(
+            **data
+        )
         res = await self._session.execute(stmt)
         return res.scalar_one()
+        return res.first()
