@@ -30,5 +30,10 @@ class SQLAlchemyRepository(IRepository):
             **data
         )
         res = await self._session.execute(stmt)
-        return res.scalar_one()
         return res.first()
+
+    async def add(self, **insert_data) -> Base:
+        new_model_object = self.model(**insert_data)
+        self._session.add(new_model_object)
+        await self._session.flush()
+        return new_model_object

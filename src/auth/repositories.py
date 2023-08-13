@@ -1,4 +1,3 @@
-from auth.models import User
 from typing import Sequence
 
 from auth import models
@@ -7,7 +6,6 @@ from repository import SQLAlchemyRepository
 
 
 class UserRepository(SQLAlchemyRepository):
-    model = User
     model = models.User
 
     async def get(
@@ -15,3 +13,7 @@ class UserRepository(SQLAlchemyRepository):
     ) -> UserInDB:
         user = await super().get(returns=returns, **data)
         return UserInDB.model_validate(user)
+
+    async def add(self, **insert_data) -> UserInfo:
+        created_user = await super().add(**insert_data)
+        return UserInfo.model_validate(created_user)
