@@ -1,24 +1,25 @@
-version: '1.0'
+version: '3.8'
 
 services:
-  postgres:
-    image: postgres:latest
+  postgres_db:
+    image: postgres:16.0
     restart: always
-    ports:
-      - '5001:5432'
     volumes:
       - postgres_data:/var/lib/postgresql/data/
+    expose:
+      - 5432
     env_file:
       - .env
   fastapi:
     build: .
     restart: always
+    command:  bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
     ports:
       - '8000:8000'
     env_file:
       - .env
     depends_on:
-      - postgres
+      - postgres_db
 
 volumes:
   postgres_data:
