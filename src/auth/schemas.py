@@ -1,8 +1,8 @@
 import re
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
-from pydantic_core.core_schema import FieldValidationInfo
+from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic_core.core_schema import ValidationInfo
 
 
 class Token(BaseModel):
@@ -16,20 +16,18 @@ class UserInLogin(BaseModel):
 
 
 class UserInfo(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID
     username: str
 
-    class Config:
-        from_attributes: bool = True
-
 
 class UserInDB(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: UUID | None = None
     username: str | None = None
     hashed_password: str | None = None
-
-    class Config:
-        from_attributes: bool = True
 
     def to_user_info(self) -> UserInfo:
         return UserInfo(**self.model_dump())
@@ -52,7 +50,7 @@ class UserInCreate(BaseModel):
 
     @field_validator("repeat_password")
     def check_passwords_match(
-        cls, repeat_password: str, info: FieldValidationInfo
+        cls, repeat_password: str, info: ValidationInfo
     ) -> str:
         if repeat_password != info.data.get("password", ""):
             raise ValueError("Passwords do not match")

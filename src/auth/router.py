@@ -33,7 +33,7 @@ async def login(
     return create_response(token=token)
 
 
-@router.get("/users/me/")
+@router.get("/users/me")
 async def get_current_user(user: AuthenticatedUserDep):
     return create_response(user=user)
 

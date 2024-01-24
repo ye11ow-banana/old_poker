@@ -7,16 +7,17 @@ readme = "README.md"
 
 [tool.poetry.dependencies]
 python = "^3.11"
-fastapi = "^0.100.1"
 sqlalchemy = "^2.0.19"
 alembic = "^1.11.1"
-uvicorn = "^0.23.2"
-asyncpg = "^0.28.0"
 python-decouple = "^3.8"
 python-jose = "^3.3.0"
 passlib = "^1.7.4"
 python-multipart = "^0.0.6"
-bcrypt = "^4.0.1"
+httpx = "^0.25.2"
+uvicorn = "^0.24.0.post1"
+asyncpg = "^0.29.0"
+fastapi = "^0.109.0"
+bcrypt = "4.0.1"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.4.1"
@@ -24,6 +25,8 @@ black = "^23.7.0"
 pytest = "^7.4.0"
 pre-commit = "^3.3.3"
 isort = "^5.12.0"
+pytest-asyncio = "^0.23.3"
+pytest-dotenv = "^0.5.2"
 
 [build-system]
 requires = ["poetry-core"]
@@ -45,3 +48,7 @@ exclude = ["migrations"]
 [tool.black]
 line-length = 79
 target-version = ["py311"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+asyncio_mode = "auto"
