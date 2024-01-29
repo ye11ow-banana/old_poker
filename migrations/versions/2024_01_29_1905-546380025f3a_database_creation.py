@@ -1,15 +1,16 @@
-"""Create User model
+"""Database creation
 
-Revision ID: b8574df7f903
+Revision ID: 546380025f3a
 Revises: 
-Create Date: 2023-08-05 15:14:35.109373
+Create Date: 2024-01-29 19:05:28.590798
 
 """
-import sqlalchemy as sa
 from alembic import op
+import sqlalchemy as sa
+
 
 # revision identifiers, used by Alembic.
-revision = "b8574df7f903"
+revision = "546380025f3a"
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -23,6 +24,7 @@ def upgrade() -> None:
         sa.Column("username", sa.String(), nullable=False),
         sa.Column("hashed_password", sa.String(length=1024), nullable=False),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("username"),
     )
     op.create_index(op.f("ix_users_id"), "users", ["id"], unique=False)
     # ### end Alembic commands ###

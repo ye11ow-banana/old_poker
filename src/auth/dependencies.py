@@ -1,4 +1,3 @@
-from json import JSONDecodeError
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
@@ -53,13 +52,3 @@ class _AuthenticatedUser:
 
 
 AuthenticatedUserDep = Annotated[UserInfo, Depends(_AuthenticatedUser())]
-
-
-async def _request_data(request: Request) -> dict:
-    try:
-        return dict(await request.json())
-    except JSONDecodeError:
-        return {}
-
-
-request_data_dep = Annotated[dict, Depends(_request_data)]

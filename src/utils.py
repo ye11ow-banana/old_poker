@@ -1,5 +1,4 @@
-from fastapi import HTTPException, status
-from pydantic import ValidationError
+from typing import Sequence
 
 
 class PydanticConvertor:
@@ -25,15 +24,15 @@ class PydanticConvertor:
                 error_message_substrings_to_convert
             )
 
-    def convert_errors(self, e: ValidationError) -> list[dict[str, str]]:
+    def convert_errors(self, errors: Sequence) -> list[dict[str, str]]:
         new_errors: list[dict[str, str]] = []
-        for error in e.errors():
+        for error in errors:
             try:
                 error_message = error["msg"]
             except KeyError:
                 error_message = "Unknown error"
             try:
-                field = str(error["loc"][0]) if error["loc"] else "all"
+                field = str(error["loc"][-1]) if error["loc"] else "all"
             except KeyError:
                 field = "all"
             error_message = self._convert_error_message(error_message)
@@ -49,14 +48,3 @@ class PydanticConvertor:
         for error in self._error_message_substrings_to_convert:
             error_message = error_message.split(error)[-1]
         return error_message
-
-
-def create_http_exception(status_code: int, errors: list) -> HTTPException:
-    detail = dict(result=False, errors=errors)
-    return HTTPException(status_code=status_code, detail=detail)
-
-
-def create_response(
-    **kwargs,
-) -> dict:
-    return dict(detail=dict(result=True, **kwargs))

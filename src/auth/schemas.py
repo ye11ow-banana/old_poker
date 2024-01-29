@@ -12,7 +12,7 @@ class Token(BaseModel):
 
 class UserInLogin(BaseModel):
     username: str
-    hashed_password: str
+    password: str
 
 
 class UserInfo(BaseModel):
@@ -31,9 +31,6 @@ class UserInDB(BaseModel):
 
     def to_user_info(self) -> UserInfo:
         return UserInfo(**self.model_dump())
-
-    def to_user_in_login(self) -> UserInLogin:
-        return UserInLogin(**self.model_dump())
 
 
 class UserInCreate(BaseModel):

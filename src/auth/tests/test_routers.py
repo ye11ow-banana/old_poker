@@ -3,6 +3,7 @@ from httpx import AsyncClient
 from sqlalchemy import select
 
 from auth.models import User
+from auth.services.authentication import JWTAuthenticationService
 from database import async_session_maker
 
 pytestmark = pytest.mark.asyncio
@@ -28,15 +29,12 @@ class TestLogin:
                 "password": "string",
             },
         )
-        access_token = response.json()["detail"]["token"]["access_token"]
+        access_token = response.json()["data"]["access_token"]
         assert response.status_code == 200
         assert response.json() == {
-            "detail": {
-                "result": True,
-                "token": {
-                    "access_token": access_token,
-                    "token_type": "bearer",
-                },
+            "data": {
+                "access_token": access_token,
+                "token_type": "bearer",
             }
         }
         assert len(access_token) == 124
@@ -48,8 +46,15 @@ class TestLogin:
 
     async def test_no_data(self, ac: AsyncClient):
         response = await ac.post(self._url, json={})
-        assert response.status_code == 401
-        assert response.json() == {"detail": "Could not validate credentials"}
+        assert response.status_code == 422
+        assert response.json() == {
+            "error": {
+                "errors": [
+                    {"field": "username", "message": "Field required"},
+                    {"field": "password", "message": "Field required"},
+                ]
+            }
+        }
 
     async def test_empty_username(self, ac: AsyncClient):
         response = await ac.post(
@@ -60,7 +65,9 @@ class TestLogin:
             },
         )
         assert response.status_code == 401
-        assert response.json() == {"detail": "Could not validate credentials"}
+        assert response.json() == {
+            "error": {"message": "Could not validate credentials"}
+        }
 
     async def test_empty_password(self, ac: AsyncClient):
         response = await ac.post(
@@ -71,7 +78,9 @@ class TestLogin:
             },
         )
         assert response.status_code == 401
-        assert response.json() == {"detail": "Could not validate credentials"}
+        assert response.json() == {
+            "error": {"message": "Could not validate credentials"}
+        }
 
     async def test_wrong_username(self, ac: AsyncClient):
         async with async_session_maker() as session:
@@ -88,18 +97,15 @@ class TestLogin:
             },
         )
         assert response.status_code == 401
-        assert response.json() == {"detail": "Could not validate credentials"}
+        assert response.json() == {
+            "error": {"message": "Could not validate credentials"}
+        }
 
 
 class TestGetCurrentUser:
     _url = "/auth/users/me"
     _hashed_password = (
         "$2b$12$q.w27JQIcsvQFz75UFRKZ.K3P4qAxSb84JjcKgO/7rXcs0sLAxjEK"
-    )
-    _jwt_token = (
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
-        "eyJzdWIiOiJjdXJyZW50IiwiZXhwIjoxNzA2MTI2MTUyfQ."
-        "GI1ZrYhtaWiBm5MQHezJTt9fYkIJV7X5L22xkL01z3s"
     )
 
     async def test_success(self, ac: AsyncClient):
@@ -109,25 +115,26 @@ class TestGetCurrentUser:
             )
             session.add(user)
             await session.commit()
+        data = {"sub": "current"}
+        access_token = await JWTAuthenticationService.create_access_token(data)
         response = await ac.get(
             self._url,
-            headers={"Authorization": f"Bearer {self._jwt_token}"},
+            headers={"Authorization": f"Bearer {access_token}"},
         )
         assert response.status_code == 200
         assert response.json() == {
-            "detail": {
-                "result": True,
-                "user": {
-                    "id": str(user.id),
-                    "username": "current",
-                },
+            "data": {
+                "id": str(user.id),
+                "username": "current",
             }
         }
 
     async def test_no_token(self, ac: AsyncClient):
         response = await ac.get(self._url)
         assert response.status_code == 401
-        assert response.json() == {"detail": "Could not validate credentials"}
+        assert response.json() == {
+            "error": {"message": "Could not validate credentials"}
+        }
 
 
 class TestRegistration:
@@ -142,15 +149,12 @@ class TestRegistration:
                 "repeat_password": "string",
             },
         )
-        new_id = response.json()["detail"]["user"]["id"]
+        new_id = response.json()["data"]["id"]
         assert response.status_code == 201
         assert response.json() == {
-            "detail": {
-                "result": True,
-                "user": {
-                    "id": new_id,
-                    "username": "string",
-                },
+            "data": {
+                "id": new_id,
+                "username": "string",
             }
         }
         async with async_session_maker() as session:
@@ -165,15 +169,14 @@ class TestRegistration:
         async with async_session_maker() as session:
             old_results = (await session.execute(select(User))).scalars().all()
         response = await ac.post("/auth/registration", json={})
-        assert response.status_code == 400
+        assert response.status_code == 422
         assert response.json() == {
-            "detail": {
+            "error": {
                 "errors": [
                     {"field": "username", "message": "Field required"},
                     {"field": "password", "message": "Field required"},
                     {"field": "repeat_password", "message": "Field required"},
                 ],
-                "result": False,
             }
         }
         async with async_session_maker() as session:
@@ -191,16 +194,15 @@ class TestRegistration:
                 "repeat_password": "string",
             },
         )
-        assert response.status_code == 400
+        assert response.status_code == 422
         assert response.json() == {
-            "detail": {
+            "error": {
                 "errors": [
                     {
                         "field": "username",
                         "message": "String should have at least 3 characters",
                     }
                 ],
-                "result": False,
             }
         }
         async with async_session_maker() as session:
@@ -218,9 +220,9 @@ class TestRegistration:
                 "repeat_password": "string",
             },
         )
-        assert response.status_code == 400
+        assert response.status_code == 422
         assert response.json() == {
-            "detail": {
+            "error": {
                 "errors": [
                     {
                         "field": "password",
@@ -231,7 +233,6 @@ class TestRegistration:
                         "message": "Passwords do not match",
                     },
                 ],
-                "result": False,
             }
         }
         async with async_session_maker() as session:
@@ -249,16 +250,15 @@ class TestRegistration:
                 "repeat_password": "",
             },
         )
-        assert response.status_code == 400
+        assert response.status_code == 422
         assert response.json() == {
-            "detail": {
+            "error": {
                 "errors": [
                     {
                         "field": "repeat_password",
                         "message": "Passwords do not match",
                     }
                 ],
-                "result": False,
             }
         }
         async with async_session_maker() as session:
@@ -281,15 +281,7 @@ class TestRegistration:
         )
         assert response.status_code == 400
         assert response.json() == {
-            "detail": {
-                "errors": [
-                    {
-                        "field": "all",
-                        "message": "User with this username already exists",
-                    }
-                ],
-                "result": False,
-            }
+            "error": {"message": "User with this username already exists"}
         }
         async with async_session_maker() as session:
             result = await session.execute(select(User))

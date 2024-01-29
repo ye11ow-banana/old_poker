@@ -7,7 +7,7 @@ from passlib.exc import UnknownHashError
 from sqlalchemy.orm.exc import NoResultFound
 
 from auth.exceptions import AuthenticationException
-from auth.schemas import Token, UserInDB, UserInfo
+from auth.schemas import Token, UserInDB, UserInfo, UserInLogin
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from unitofwork import IUnitOfWork
 
@@ -18,7 +18,7 @@ class IAuthenticationService(ABC):
         self._pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
     @abstractmethod
-    async def authenticate_user(self, username: str, password: str):
+    async def authenticate_user(self, data: UserInLogin):
         raise NotImplementedError
 
     @abstractmethod
@@ -44,12 +44,11 @@ class IAuthenticationService(ABC):
 
 
 class JWTAuthenticationService(IAuthenticationService):
-    async def authenticate_user(self, username: str, password: str) -> Token:
+    async def authenticate_user(self, user: UserInLogin) -> Token:
         try:
             async with self._uof:
-                db_user = await self._get_db_user_by_username(username)
-            user = db_user.to_user_in_login()
-            await self._verify_password(password, user.hashed_password)
+                db_user = await self._get_db_user_by_username(user.username)
+            await self._verify_password(user.password, db_user.hashed_password)
         except (NoResultFound, ValueError):
             raise AuthenticationException("Incorrect username or password")
         access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
