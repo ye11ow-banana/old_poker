@@ -18,6 +18,7 @@ uvicorn = "^0.24.0.post1"
 asyncpg = "^0.29.0"
 fastapi = "^0.109.0"
 bcrypt = "4.0.1"
+sqlalchemy-utils = "^0.41.1"
 
 [tool.poetry.group.dev.dependencies]
 mypy = "^1.4.1"

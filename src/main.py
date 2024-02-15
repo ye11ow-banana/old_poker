@@ -3,7 +3,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError, HTTPException
 from fastapi.responses import JSONResponse
 
-from analysis.router import router as router_analysis
+from game.router import router as router_game
 from auth.router import router as router_auth
 from schemas import ErrorResponse, PydanticErrorResponse, MessageErrorResponse
 from utils import PydanticConvertor
@@ -36,5 +36,5 @@ async def validation_exception_handler(_: Request, exc: HTTPException):
     )
 
 
-app.include_router(router_analysis)
+app.include_router(router_game)
 app.include_router(router_auth)
