@@ -21,6 +21,6 @@ COPY . /usr/src/app
 
 RUN poetry install
 
-EXPOSE 8000
+EXPOSE 80
 
 ENTRYPOINT ["poetry", "run"]

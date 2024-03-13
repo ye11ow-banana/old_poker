@@ -13,9 +13,9 @@ services:
   fastapi:
     build: .
     restart: always
-    command:  bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 8000"
+    command:  bash -c "alembic upgrade head && uvicorn main:app --host 0.0.0.0 --port 80"
     ports:
-      - '8000:8000'
+      - '80:80'
     env_file:
       - .env
     depends_on:
