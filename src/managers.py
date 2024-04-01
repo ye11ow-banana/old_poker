@@ -21,5 +21,8 @@ class WSConnectionManager:
     def get_connections_count(self) -> int:
         return len(self._active_connections)
 
+    def get_active_user_ids(self) -> list[str]:
+        return list(self._active_connections.keys())
+
 
 ws_manager = WSConnectionManager()

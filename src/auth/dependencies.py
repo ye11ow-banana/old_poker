@@ -7,9 +7,7 @@ from starlette.requests import Request
 from auth.exceptions import AuthenticationException
 from auth.schemas import UserInfo
 from auth.services.authentication import JWTAuthenticationService
-from unitofwork import IUnitOfWork, UnitOfWork
-
-UOWDep = Annotated[IUnitOfWork, Depends(UnitOfWork)]
+from dependencies import UOWDep
 
 
 def _http_exception_401() -> HTTPException:
