@@ -1,28 +1,27 @@
-import datetime
+from datetime import datetime
 from uuid import uuid4
 
 from sqlalchemy import (
     UUID,
     Column,
-    String,
     Integer,
     DateTime,
     Boolean,
     Table,
     ForeignKey,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.util.preloaded import orm
-from sqlalchemy_utils import ChoiceType
 
 from auth.models import User
 from database import Base
 
-GAME_TYPE_CHOICES = (
-    ("multiplayer", "Multiplayer"),
-    ("single", "Single"),
-    ("analysis", "Analysis"),
-)
+
+class GameType:
+    multiplayer = "Multiplayer"
+    single = "Single"
+    analysis = "Analysis"
+
 
 winners_association_table = Table(
     "winners_association_table",
@@ -42,16 +41,18 @@ players_association_table = Table(
 class Game(Base):
     __tablename__ = "games"
 
-    id = Column(
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid4, index=True
     )
-    type = ChoiceType(GAME_TYPE_CHOICES, impl=String(length=11))
-    players_number = Column(Integer, nullable=False)
-    is_finished = Column(Boolean, default=False, nullable=False)
-    date_created = Column(
-        DateTime, default=datetime.datetime.utcnow, nullable=False
+    type: Mapped[GameType]
+    players_number: Mapped[int]
+    is_finished: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
     )
-    date_finished = Column(DateTime, nullable=True)
+    date_created: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, nullable=False
+    )
+    date_finished: Mapped[datetime | None]
 
     players = relationship(
         "User", secondary=players_association_table, back_populates="games"

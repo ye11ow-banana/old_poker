@@ -1,7 +1,7 @@
 from uuid import uuid4
 
 from sqlalchemy import UUID, Column, String, Integer, Table, ForeignKey
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from database import Base
 
@@ -16,12 +16,14 @@ friends_association_table = Table(
 class User(Base):
     __tablename__ = "users"
 
-    id = Column(
+    id: Mapped[UUID] = mapped_column(
         UUID(as_uuid=True), primary_key=True, default=uuid4, index=True
     )
-    username = Column(String, unique=True, nullable=False)
-    hashed_password = Column(String(length=1024), nullable=False)
-    elo = Column(Integer, default=1000, nullable=False)
+    username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(
+        String(length=1024), nullable=False
+    )
+    elo: Mapped[int] = mapped_column(Integer, default=1000, nullable=False)
     friends = relationship(
         "User",
         secondary=friends_association_table,
