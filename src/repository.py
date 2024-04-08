@@ -14,6 +14,10 @@ class IRepository(ABC):
     ) -> Base:
         raise NotImplementedError
 
+    @abstractmethod
+    async def add(self, **insert_data) -> Base:
+        raise NotImplementedError
+
 
 class SQLAlchemyRepository(IRepository):
     model: Type[Base]

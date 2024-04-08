@@ -1,33 +1,52 @@
-from uuid import uuid4
+from __future__ import annotations
 
-from sqlalchemy import UUID, Column, String, Integer, Table, ForeignKey
+from typing import TYPE_CHECKING
+import uuid
+
+from sqlalchemy import UUID, String, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 
 from database import Base
+from database import uuidpk, created_at
 
-friends_association_table = Table(
-    "friendships",
-    Base.metadata,
-    Column("left_user_id", UUID(as_uuid=True), ForeignKey("users.id")),
-    Column("right_user_id", UUID(as_uuid=True), ForeignKey("users.id")),
-)
+if TYPE_CHECKING:
+    from game.models import Game
+
+
+class Friendship(Base):
+    __tablename__ = "friendships"
+
+    left_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    right_user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
 
 
 class User(Base):
     __tablename__ = "users"
 
-    id: Mapped[UUID] = mapped_column(
-        UUID(as_uuid=True), primary_key=True, default=uuid4, index=True
-    )
-    username: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    id: Mapped[uuidpk]
+    username: Mapped[str] = mapped_column(unique=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(
         String(length=1024), nullable=False
     )
-    elo: Mapped[int] = mapped_column(Integer, default=1000, nullable=False)
-    friends = relationship(
-        "User",
-        secondary=friends_association_table,
-        primaryjoin="id==friends_association_table.c.left_user_id",
-        secondaryjoin="id==friends_association_table.c.right_user_id",
-        backref="friends",
+    elo: Mapped[int] = mapped_column(default=1000, nullable=False)
+    created_at: Mapped[created_at]
+
+    friends: Mapped[list["User"]] = relationship(
+        secondary="friendships",
+        primaryjoin="id == friendships.c.left_user_id",
+        secondaryjoin="id == friendships.c.right_user_id",
+    )
+    games: Mapped[list["Game"]] = relationship(
+        secondary="players", back_populates="players"
+    )
+    games_won: Mapped[list["Game"]] = relationship(
+        secondary="winners", back_populates="winners"
     )

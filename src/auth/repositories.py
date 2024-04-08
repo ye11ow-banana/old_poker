@@ -1,7 +1,7 @@
 from typing import Sequence
 
 from auth import models
-from auth.schemas import UserInDB, UserInfo
+from auth.schemas import UserInDBDTO, UserInfoDTO
 from repository import SQLAlchemyRepository
 
 
@@ -10,10 +10,17 @@ class UserRepository(SQLAlchemyRepository):
 
     async def get(
         self, /, returns: Sequence[str] | None = None, **data: str | int
-    ) -> UserInDB:
+    ) -> UserInDBDTO:
         user = await super().get(returns=returns, **data)
-        return UserInDB.model_validate(user)
+        return UserInDBDTO.model_validate(user)
 
-    async def add(self, **insert_data) -> UserInfo:
+    async def add(self, **insert_data) -> UserInfoDTO:
         created_user = await super().add(**insert_data)
-        return UserInfo.model_validate(created_user)
+        return UserInfoDTO.model_validate(created_user)
+
+    async def get_friends(
+        self, /, returns: Sequence[str] | None = None, **data: str | int
+    ) -> list[UserInfoDTO]:
+        friends = await super().get_friends(**data)
+        print(friends)
+        return [UserInfoDTO.model_validate(friend) for friend in friends]
