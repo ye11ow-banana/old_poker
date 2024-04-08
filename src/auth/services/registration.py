@@ -2,7 +2,7 @@ from passlib.context import CryptContext
 from sqlalchemy.exc import IntegrityError
 
 from auth.exceptions import RegistrationException
-from auth.schemas import UserInCreate, UserInfo
+from auth.schemas import UserInCreateDTO, UserInfoDTO
 from unitofwork import IUnitOfWork
 
 
@@ -11,7 +11,7 @@ class RegistrationService:
         self._uof: IUnitOfWork = uow
         self._pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-    async def register_user(self, user: UserInCreate) -> UserInfo:
+    async def register_user(self, user: UserInCreateDTO) -> UserInfoDTO:
         hashed_password = await self._hash_password(user.password)
         try:
             async with self._uof:
@@ -25,7 +25,7 @@ class RegistrationService:
             )
         return new_user
 
-    async def _create_user(self, username: str, password: str) -> UserInfo:
+    async def _create_user(self, username: str, password: str) -> UserInfoDTO:
         return await self._uof.users.add(
             username=username, hashed_password=password
         )

@@ -4,7 +4,7 @@ from fastapi import Depends, status, WebSocketException
 from fastapi.websockets import WebSocket
 
 from auth.exceptions import AuthenticationException
-from auth.schemas import UserInfo
+from auth.schemas import UserInfoDTO
 from auth.services.authentication import JWTAuthenticationService
 from dependencies import UOWDep
 
@@ -24,7 +24,7 @@ class _WSAuthenticatedUser:
         ws_exception: ws_exception_1008_dep,
         websocket: WebSocket,
         uow: UOWDep,
-    ) -> UserInfo:
+    ) -> UserInfoDTO:
         try:
             token = websocket.query_params["token"]
         except KeyError:
@@ -36,4 +36,6 @@ class _WSAuthenticatedUser:
         return user
 
 
-WSAuthenticatedUserDep = Annotated[UserInfo, Depends(_WSAuthenticatedUser())]
+WSAuthenticatedUserDep = Annotated[
+    UserInfoDTO, Depends(_WSAuthenticatedUser())
+]

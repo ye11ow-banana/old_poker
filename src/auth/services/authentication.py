@@ -7,7 +7,7 @@ from passlib.exc import UnknownHashError
 from sqlalchemy.orm.exc import NoResultFound
 
 from auth.exceptions import AuthenticationException
-from auth.schemas import Token, UserInDB, UserInfo, UserInLogin
+from auth.schemas import TokenDTO, UserInDBDTO, UserInfoDTO, UserInLoginDTO
 from config import ACCESS_TOKEN_EXPIRE_MINUTES, ALGORITHM, SECRET_KEY
 from unitofwork import IUnitOfWork
 
@@ -18,11 +18,11 @@ class IAuthenticationService(ABC):
         self._pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
     @abstractmethod
-    async def authenticate_user(self, data: UserInLogin):
+    async def authenticate_user(self, data: UserInLoginDTO):
         raise NotImplementedError
 
     @abstractmethod
-    async def get_current_user(self, token: str) -> UserInfo:
+    async def get_current_user(self, token: str) -> UserInfoDTO:
         raise NotImplementedError
 
     async def _verify_password(
@@ -39,12 +39,12 @@ class IAuthenticationService(ABC):
 
     async def _get_db_user_by_username(
         self, username: str, **kwargs
-    ) -> UserInDB:
+    ) -> UserInDBDTO:
         return await self._uof.users.get(username=username, **kwargs)
 
 
 class JWTAuthenticationService(IAuthenticationService):
-    async def authenticate_user(self, user: UserInLogin) -> Token:
+    async def authenticate_user(self, user: UserInLoginDTO) -> TokenDTO:
         try:
             async with self._uof:
                 db_user = await self._get_db_user_by_username(user.username)
@@ -55,9 +55,9 @@ class JWTAuthenticationService(IAuthenticationService):
         access_token = await self.create_access_token(
             data={"sub": user.username}, expires_delta=access_token_expires
         )
-        return Token(access_token=access_token, token_type="bearer")
+        return TokenDTO(access_token=access_token, token_type="bearer")
 
-    async def get_current_user(self, token: str) -> UserInfo:
+    async def get_current_user(self, token: str) -> UserInfoDTO:
         try:
             async with self._uof:
                 db_user = await self._get_db_user_by_jwt(
@@ -78,7 +78,7 @@ class JWTAuthenticationService(IAuthenticationService):
         encoded_jwt = jwt.encode(data, SECRET_KEY, algorithm=ALGORITHM)
         return str(encoded_jwt)
 
-    async def _get_db_user_by_jwt(self, token: str, **kwargs) -> UserInDB:
+    async def _get_db_user_by_jwt(self, token: str, **kwargs) -> UserInDBDTO:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         username: str = payload.get("sub")
         if username is None:

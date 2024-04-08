@@ -5,18 +5,18 @@ from pydantic import BaseModel
 S = TypeVar("S", bound=BaseModel)
 
 
-class Response(BaseModel, Generic[S]):
-    data: S
+class ResponseDTO(BaseModel, Generic[S]):
+    data: S | list[S]
 
 
-class ErrorResponse(BaseModel, Generic[S]):
+class ErrorResponseDTO(BaseModel, Generic[S]):
     error: S
 
 
-class PydanticErrorResponse(BaseModel):
+class PydanticErrorResponseDTO(BaseModel):
     field: str
     message: str
 
 
-class MessageErrorResponse(BaseModel):
+class MessageErrorResponseDTO(BaseModel):
     message: str

@@ -6,36 +6,52 @@ from auth.dependencies import (
     http_exception_401_dep,
 )
 from auth.exceptions import AuthenticationException, RegistrationException
-from auth.schemas import UserInCreate, UserInLogin, Token, UserInfo
+from auth.schemas import UserInCreateDTO, UserInLoginDTO, TokenDTO, UserInfoDTO
 from auth.services.authentication import JWTAuthenticationService
+from auth.services.friend import M2MFriendService
 from auth.services.registration import RegistrationService
-from schemas import Response
+from schemas import ResponseDTO
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
 
 @router.post("/login")
 async def login(
-    user: UserInLogin,
+    user: UserInLoginDTO,
     uow: UOWDep,
     http_exception: http_exception_401_dep,
-) -> Response[Token]:
+) -> ResponseDTO[TokenDTO]:
     try:
         token = await JWTAuthenticationService(uow).authenticate_user(user)
     except AuthenticationException:
         raise http_exception
-    return Response[Token](data=token)
+    return ResponseDTO[TokenDTO](data=token)
 
 
 @router.get("/users/me")
-async def get_current_user(user: AuthenticatedUserDep) -> Response[UserInfo]:
-    return Response[UserInfo](data=user)
+async def get_current_user(
+    user: AuthenticatedUserDep,
+) -> ResponseDTO[UserInfoDTO]:
+    return ResponseDTO[UserInfoDTO](data=user)
 
 
 @router.post("/registration", status_code=status.HTTP_201_CREATED)
-async def register_user(user: UserInCreate, uow: UOWDep) -> Response[UserInfo]:
+async def register_user(
+    user: UserInCreateDTO, uow: UOWDep
+) -> ResponseDTO[UserInfoDTO]:
     try:
         new_user = await RegistrationService(uow).register_user(user)
     except RegistrationException as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
-    return Response[UserInfo](data=new_user)
+    return ResponseDTO[UserInfoDTO](data=new_user)
+
+
+@router.get("/friends")
+async def get_friends(
+    user: AuthenticatedUserDep, uow: UOWDep
+) -> ResponseDTO[list[UserInfoDTO]]:
+    try:
+        friends = await M2MFriendService(uow).get_friends(user)
+    except ValueError as e:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return ResponseDTO[list[UserInfoDTO]](data=friends)

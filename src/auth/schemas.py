@@ -5,35 +5,35 @@ from pydantic import BaseModel, Field, field_validator, ConfigDict
 from pydantic_core.core_schema import ValidationInfo
 
 
-class Token(BaseModel):
+class TokenDTO(BaseModel):
     access_token: str
     token_type: str
 
 
-class UserInLogin(BaseModel):
+class UserInLoginDTO(BaseModel):
     username: str
     password: str
 
 
-class UserInfo(BaseModel):
+class UserInfoDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
     username: str
 
 
-class UserInDB(BaseModel):
+class UserInDBDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID | None = None
     username: str | None = None
     hashed_password: str | None = None
 
-    def to_user_info(self) -> UserInfo:
-        return UserInfo(**self.model_dump())
+    def to_user_info(self) -> UserInfoDTO:
+        return UserInfoDTO(**self.model_dump())
 
 
-class UserInCreate(BaseModel):
+class UserInCreateDTO(BaseModel):
     username: str = Field(min_length=3, max_length=30)
     password: str = Field(min_length=6)
     repeat_password: str

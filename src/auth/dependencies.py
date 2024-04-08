@@ -5,7 +5,7 @@ from fastapi.security.utils import get_authorization_scheme_param
 from starlette.requests import Request
 
 from auth.exceptions import AuthenticationException
-from auth.schemas import UserInfo
+from auth.schemas import UserInfoDTO
 from auth.services.authentication import JWTAuthenticationService
 from dependencies import UOWDep
 
@@ -41,7 +41,7 @@ class _AuthenticatedUser:
         http_exception: http_exception_401_dep,
         token: JWTDep,
         uow: UOWDep,
-    ) -> UserInfo:
+    ) -> UserInfoDTO:
         try:
             user = await JWTAuthenticationService(uow).get_current_user(token)
         except AuthenticationException:
@@ -49,4 +49,4 @@ class _AuthenticatedUser:
         return user
 
 
-AuthenticatedUserDep = Annotated[UserInfo, Depends(_AuthenticatedUser())]
+AuthenticatedUserDep = Annotated[UserInfoDTO, Depends(_AuthenticatedUser())]

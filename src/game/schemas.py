@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field, ConfigDict
 
 
-class PlayersInSearchCount(BaseModel):
+class PlayersInSearchCountDTO(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     count: int = Field(
