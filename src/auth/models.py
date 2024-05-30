@@ -41,12 +41,12 @@ class User(Base):
 
     friends: Mapped[list["User"]] = relationship(
         secondary="friendships",
-        primaryjoin="id == friendships.c.left_user_id",
-        secondaryjoin="id == friendships.c.right_user_id",
+        primaryjoin="User.id == foreign(Friendship.left_user_id)",
+        secondaryjoin="User.id == foreign(Friendship.right_user_id)",
     )
     games: Mapped[list["Game"]] = relationship(
-        secondary="players", back_populates="players"
+        secondary="game_players", back_populates="players"
     )
     games_won: Mapped[list["Game"]] = relationship(
-        secondary="winners", back_populates="winners"
+        "Game", secondary="game_winners", back_populates="winners"
     )

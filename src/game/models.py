@@ -11,8 +11,8 @@ from database import Base
 from database import uuidpk, created_at
 
 
-class UserGamePlayer(Base):
-    __tablename__ = "players"
+class GamePlayer(Base):
+    __tablename__ = "game_players"
 
     game_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -26,8 +26,8 @@ class UserGamePlayer(Base):
     )
 
 
-class UserGameWinner(Base):
-    __tablename__ = "winners"
+class GameWinner(Base):
+    __tablename__ = "game_winners"
 
     game_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
@@ -58,10 +58,10 @@ class Game(Base):
     finished_at: Mapped[datetime | None]
 
     players: Mapped[list["User"]] = relationship(
-        secondary="players", back_populates="games"
+        secondary="game_players", back_populates="games"
     )
     winners: Mapped[list["User"]] = relationship(
-        secondary="winners", back_populates="games_won"
+        "User", secondary="game_winners", back_populates="games_won"
     )
 
     @orm.validates("players_number")

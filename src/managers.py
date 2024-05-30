@@ -1,6 +1,6 @@
 from fastapi.websockets import WebSocket
 
-from schemas import Response
+from schemas import ResponseDTO
 
 
 class WSConnectionManager:
@@ -14,7 +14,7 @@ class WSConnectionManager:
     def disconnect(self, user_id: str) -> None:
         del self._active_connections[user_id]
 
-    async def broadcast(self, data: Response) -> None:
+    async def broadcast(self, data: ResponseDTO) -> None:
         for connection in self._active_connections.values():
             await connection.send_json(data.model_dump(by_alias=True))
 

@@ -5,14 +5,18 @@ from fastapi.responses import JSONResponse
 
 from game.router import router as router_game
 from auth.router import router as router_auth
-from schemas import ErrorResponse, PydanticErrorResponse, MessageErrorResponse
+from schemas import (
+    ErrorResponseDTO,
+    PydanticErrorResponseDTO,
+    MessageErrorResponseDTO,
+)
 from utils import PydanticConvertor
 
 app = FastAPI(
     title="Poker app",
     responses={
-        401: {"model": ErrorResponse[MessageErrorResponse]},
-        422: {"model": ErrorResponse[PydanticErrorResponse]},
+        401: {"model": ErrorResponseDTO[MessageErrorResponseDTO]},
+        422: {"model": ErrorResponseDTO[PydanticErrorResponseDTO]},
     },
 )
 
