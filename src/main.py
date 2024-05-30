@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError, HTTPException
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
 
 from game.router import router as router_game
 from auth.router import router as router_auth
@@ -18,6 +19,16 @@ app = FastAPI(
         401: {"model": ErrorResponseDTO[MessageErrorResponseDTO]},
         422: {"model": ErrorResponseDTO[PydanticErrorResponseDTO]},
     },
+)
+
+ORIGINS = {"*"}
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
