@@ -1,6 +1,9 @@
 from typing import Sequence
+from uuid import UUID
 
-from auth import models
+from sqlalchemy import select, or_
+
+from auth import models, Friendship
 from auth.schemas import UserInDBDTO, UserInfoDTO
 from repository import SQLAlchemyRepository
 
@@ -18,9 +21,33 @@ class UserRepository(SQLAlchemyRepository):
         created_user = await super().add(**insert_data)
         return UserInfoDTO.model_validate(created_user)
 
-    async def get_friends(
-        self, /, returns: Sequence[str] | None = None, **data: str | int
+    async def get_all_friends(
+        self,
+        /,
+        user_id: UUID,
+        returns: Sequence[str] | None = None,
     ) -> list[UserInfoDTO]:
-        friends = await super().get_friends(**data)
-        print(friends)
-        return [UserInfoDTO.model_validate(friend) for friend in friends]
+        """
+        Get all friends of a user by user_id.
+        """
+        if returns is None:
+            returns = [c.name for c in self.model.__table__.columns]
+        stmt = (
+            select(*[getattr(self.model, c) for c in returns])
+            .join(
+                Friendship,
+                or_(
+                    self.model.id == Friendship.right_user_id,
+                    self.model.id == Friendship.left_user_id,
+                ),
+            )
+            .filter(
+                or_(
+                    Friendship.left_user_id == user_id,
+                    Friendship.right_user_id == user_id,
+                ),
+                self.model.id != user_id,
+            )
+        )
+        res = await self._session.execute(stmt)
+        return [UserInfoDTO.model_validate(friend) for friend in res.all()]

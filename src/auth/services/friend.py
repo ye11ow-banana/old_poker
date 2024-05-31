@@ -21,4 +21,10 @@ class M2MFriendService(IFriendService):
 
     async def get_friends(self, user: UserInfoDTO) -> list[UserInfoDTO]:
         async with self._uow:
-            return await self._uow.users.get_friends(id=str(user.id))
+            return await self._uow.users.get_all_friends(
+                user_id=user.id,
+                returns=(
+                    "id",
+                    "username",
+                ),
+            )
