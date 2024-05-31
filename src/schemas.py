@@ -20,3 +20,9 @@ class PydanticErrorResponseDTO(BaseModel):
 
 class MessageErrorResponseDTO(BaseModel):
     message: str
+
+
+class PaginationDTO(BaseModel, Generic[S]):
+    page_count: int
+    total_count: int
+    data: list[S]

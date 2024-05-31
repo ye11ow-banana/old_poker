@@ -1,10 +1,11 @@
 from abc import ABC, abstractmethod
 from typing import Sequence, Type
 
-from sqlalchemy import select
+from sqlalchemy import select, func, Row
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import Base
+from utils import Pagination
 
 
 class IRepository(ABC):
@@ -27,13 +28,13 @@ class SQLAlchemyRepository(IRepository):
 
     async def get(
         self, /, returns: Sequence[str] | None = None, **data: str | int
-    ) -> Base:
+    ) -> Row[tuple]:
         if returns is None:
             returns = [c.name for c in self.model.__table__.columns]
-        stmt = select(*[getattr(self.model, c) for c in returns]).filter_by(
+        query = select(*[getattr(self.model, c) for c in returns]).filter_by(
             **data
         )
-        res = await self._session.execute(stmt)
+        res = await self._session.execute(query)
         return res.first()
 
     async def add(self, **insert_data) -> Base:
@@ -41,3 +42,28 @@ class SQLAlchemyRepository(IRepository):
         self._session.add(new_model_object)
         await self._session.flush()
         return new_model_object
+
+    async def get_total_count(self, **data: str | int) -> int:
+        query = select(func.count())
+        for key, value in data.items():
+            column = getattr(self.model, key)
+            query = query.filter(column.ilike(f"%{value}%"))
+        result = await self._session.execute(query)
+        return result.scalar()
+
+    async def get_paginated_all(
+        self,
+        /,
+        pagination: Pagination,
+        returns: Sequence[str] | None = None,
+        **data: str | int,
+    ) -> Sequence[Row]:
+        if returns is None:
+            returns = [c.name for c in self.model.__table__.columns]
+        query = select(*[getattr(self.model, c) for c in returns])
+        for key, value in data.items():
+            column = getattr(self.model, key)
+            query = query.filter(column.ilike(f"%{value}%"))
+        query = query.offset(pagination.get_offset()).limit(pagination.limit)
+        result = await self._session.execute(query)
+        return result.fetchall()

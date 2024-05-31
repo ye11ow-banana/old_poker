@@ -6,6 +6,7 @@ from sqlalchemy import select, or_
 from auth import models, Friendship
 from auth.schemas import UserInDBDTO, UserInfoDTO
 from repository import SQLAlchemyRepository
+from utils import Pagination
 
 
 class UserRepository(SQLAlchemyRepository):
@@ -51,3 +52,13 @@ class UserRepository(SQLAlchemyRepository):
         )
         res = await self._session.execute(stmt)
         return [UserInfoDTO.model_validate(friend) for friend in res.all()]
+
+    async def get_paginated_all(
+        self,
+        /,
+        pagination: Pagination,
+        returns: Sequence[str] | None = None,
+        **data: str | int,
+    ) -> list[UserInfoDTO]:
+        users = await super().get_paginated_all(pagination, returns, **data)
+        return [UserInfoDTO.model_validate(user) for user in users]

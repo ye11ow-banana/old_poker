@@ -48,3 +48,15 @@ class PydanticConvertor:
         for error in self._error_message_substrings_to_convert:
             error_message = error_message.split(error)[-1]
         return error_message
+
+
+class Pagination:
+    def __init__(self, page: int = 1, limit: int = 10) -> None:
+        self.limit = limit
+        self._page = page
+
+    def get_page_count(self, total_count: int) -> int:
+        return (total_count + self.limit - 1) // self.limit
+
+    def get_offset(self) -> int:
+        return (self._page - 1) * self.limit
