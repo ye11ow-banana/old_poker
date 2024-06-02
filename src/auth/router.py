@@ -18,6 +18,7 @@ from auth.services.authentication import JWTAuthenticationService
 from auth.services.friend import M2MFriendService
 from auth.services.registration import RegistrationService
 from game.dependencies import WSAuthenticatedUserDep
+from game.schemas import LobbyInfoDTO
 from game.services.lobby import LobbyService
 from managers import ws_manager
 from notification.schemas import (
@@ -127,11 +128,11 @@ async def invite_friend(
                     )
                 ),
             )
+            await ws_manager.send(
+                user.id,
+                ResponseDTO[LobbyInfoDTO](
+                    data=LobbyInfoDTO(id=lobby.id, leader_id=user.id)
+                ),
+            )
     except WebSocketDisconnect:
         ws_manager.disconnect(user.id)
-
-
-# if lobby is not None:
-#     await LobbyService(uow).remove_user_from_lobby(
-#         user, lobby_id=lobby.id
-#     )

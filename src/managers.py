@@ -17,7 +17,9 @@ class WSConnectionManager:
 
     async def broadcast(self, data: ResponseDTO) -> None:
         for connection in self._active_connections.values():
-            await connection.send_json(data.model_dump(by_alias=True))
+            await connection.send_json(
+                jsonable_encoder(data.model_dump(by_alias=True))
+            )
 
     async def send(self, user_id: str, data: ResponseDTO) -> None:
         try:

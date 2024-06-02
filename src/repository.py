@@ -52,6 +52,10 @@ class IRepository(ABC):
     ) -> Row[tuple]:
         raise NotImplementedError
 
+    @abstractmethod
+    async def remove(self, **data: str | int | UUID) -> None:
+        raise NotImplementedError
+
 
 class SQLAlchemyRepository(IRepository):
     model: Type[Base]
