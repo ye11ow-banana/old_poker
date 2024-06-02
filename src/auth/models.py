@@ -11,7 +11,7 @@ from database import Base
 from database import uuidpk, created_at
 
 if TYPE_CHECKING:
-    from game.models import Game
+    from game.models import Game, Lobby
 
 
 class FriendshipStatus(enum.Enum):
@@ -59,4 +59,10 @@ class User(Base):
     )
     games_won: Mapped[list["Game"]] = relationship(
         "Game", secondary="game_winners", back_populates="winners"
+    )
+    leader_of: Mapped[list["Game"]] = relationship(
+        "Game", back_populates="leader"
+    )
+    lobbies: Mapped[list["Lobby"]] = relationship(
+        "Lobby", secondary="lobby_players", back_populates="players"
     )

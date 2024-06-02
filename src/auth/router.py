@@ -7,13 +7,24 @@ from auth.dependencies import (
     http_exception_401_dep,
 )
 from auth.exceptions import AuthenticationException, RegistrationException
-from auth.schemas import UserInCreateDTO, UserInLoginDTO, TokenDTO, UserInfoDTO
+from auth.schemas import (
+    UserInCreateDTO,
+    UserInLoginDTO,
+    TokenDTO,
+    UserInfoDTO,
+    UserIdDTO,
+)
 from auth.services.authentication import JWTAuthenticationService
 from auth.services.friend import M2MFriendService
 from auth.services.registration import RegistrationService
 from game.dependencies import WSAuthenticatedUserDep
+from game.services.lobby import LobbyService
 from managers import ws_manager
-from notification.schemas import NotificationDTO, FriendNotificationDTO
+from notification.schemas import (
+    NotificationDTO,
+    FriendNotificationDTO,
+    GameInviteDTO,
+)
 from schemas import ResponseDTO
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -61,10 +72,16 @@ async def get_friends(
     return ResponseDTO[list[UserInfoDTO]](data=friends)
 
 
-@router.websocket("/ws/friends")
+@router.websocket("/ws/friends/add")
 async def add_friend(
     websocket: WebSocket, user: WSAuthenticatedUserDep, uow: UOWDep
 ) -> None:
+    """
+    Websocket endpoint for adding friends.
+
+    When a user sends a friend request, the server sends a notification to the recipient.
+    The recipient can accept or reject the request.
+    """
     await ws_manager.connect(websocket, user.id)
     friend_service = M2MFriendService(uow)
     requests = await friend_service.get_friend_requests(user)
@@ -87,5 +104,7 @@ async def add_friend(
                     data=NotificationDTO(type=dto.type, data=user)
                 ),
             )
+    except WebSocketDisconnect:
+        ws_manager.disconnect(user.id)
     except WebSocketDisconnect:
         ws_manager.disconnect(user.id)

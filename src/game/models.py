@@ -98,3 +98,29 @@ class Game(Base):
         if value not in self.players:
             raise ValueError(f"Winner should be in players")
         return value
+
+
+class LobbyPlayer(Base):
+    __tablename__ = "lobby_players"
+
+    lobby_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("lobbies.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+
+class Lobby(Base):
+    __tablename__ = "lobbies"
+
+    id: Mapped[uuidpk]
+    created_at: Mapped[created_at]
+    leader: Mapped["User"] = relationship("User", back_populates="leader_of")
+    players: Mapped[list["User"]] = relationship(
+        "User", secondary="lobby_players", back_populates="lobbies"
+    )
