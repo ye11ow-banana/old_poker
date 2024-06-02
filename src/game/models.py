@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, UUID
+from sqlalchemy import ForeignKey, UUID, UniqueConstraint
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.util.preloaded import orm
 
@@ -128,3 +128,82 @@ class Lobby(Base):
     players: Mapped[list["User"]] = relationship(
         "User", secondary="lobby_players", back_populates="lobbies"
     )
+
+
+class Suit(enum.Enum):
+    hearts = "hearts"
+    diamonds = "diamonds"
+    clubs = "clubs"
+    spades = "spades"
+
+
+class Set(Base):
+    __tablename__ = "sets"
+
+    id: Mapped[uuidpk]
+    trump_suit: Mapped[Suit] = mapped_column(nullable=False)
+    round_name: Mapped[str] = mapped_column(nullable=False)
+    dealer_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+    )
+    game_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("games.id", ondelete="CASCADE"),
+    )
+
+
+class Dealing(Base):
+    __tablename__ = "dealings"
+
+    id: Mapped[uuidpk]
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+    )
+    set_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("sets.id", ondelete="CASCADE"),
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "set_id", name="_user_set_uc"),
+    )
+
+
+class Entry(Base):
+    __tablename__ = "entries"
+
+    id: Mapped[uuidpk]
+    owner_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+    )
+    set_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("sets.id", ondelete="CASCADE"),
+    )
+    is_finished: Mapped[bool] = mapped_column(default=False, nullable=False)
+    finished_at: Mapped[datetime | None]
+
+
+class Card(Base):
+    __tablename__ = "cards"
+
+    id: Mapped[uuidpk]
+    value: Mapped[int] = mapped_column(nullable=False)
+    suit: Mapped[Suit] = mapped_column(nullable=False)
+    dealing_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("dealings.id", ondelete="CASCADE"),
+    )
+    entry_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("entries.id", ondelete="CASCADE"),
+    )
+
+    @orm.validates("value")
+    def validate_value(self, _, value: int) -> int:
+        if not 6 <= value <= 14:
+            raise ValueError(f"Value should be between 6 and 14, got {value}")
+        return value
