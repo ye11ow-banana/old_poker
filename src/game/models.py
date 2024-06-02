@@ -120,7 +120,11 @@ class Lobby(Base):
 
     id: Mapped[uuidpk]
     created_at: Mapped[created_at]
-    leader: Mapped["User"] = relationship("User", back_populates="leader_of")
+    leader_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
     players: Mapped[list["User"]] = relationship(
         "User", secondary="lobby_players", back_populates="lobbies"
     )

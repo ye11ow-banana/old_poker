@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Sequence, Type
 from uuid import UUID
 
-from sqlalchemy import select, func, Row, update
+from sqlalchemy import select, func, Row, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import Base
@@ -12,7 +12,7 @@ from utils import Pagination
 class IRepository(ABC):
     @abstractmethod
     async def get(
-        self, /, returns: Sequence[str] | None = None, **data: str | int
+        self, /, returns: Sequence[str] | None = None, **data: str | int | UUID
     ) -> Base:
         raise NotImplementedError
 
@@ -40,6 +40,18 @@ class IRepository(ABC):
     ) -> Sequence[Row]:
         raise NotImplementedError
 
+    @abstractmethod
+    async def get_last(
+        self, /, returns: Sequence[str] | None = None, **data: str | int | UUID
+    ) -> Row[tuple]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_last_or_create(
+        self, /, returns: Sequence[str] | None = None, **data: str | int | UUID
+    ) -> Row[tuple]:
+        raise NotImplementedError
+
 
 class SQLAlchemyRepository(IRepository):
     model: Type[Base]
@@ -48,7 +60,7 @@ class SQLAlchemyRepository(IRepository):
         self._session = session
 
     async def get(
-        self, /, returns: Sequence[str] | None = None, **data: str | int
+        self, /, returns: Sequence[str] | None = None, **data: str | int | UUID
     ) -> Row[tuple]:
         if returns is None:
             returns = [c.name for c in self.model.__table__.columns]
@@ -111,3 +123,28 @@ class SQLAlchemyRepository(IRepository):
         stmt = update(self.model).filter_by(**what_to_update).values(**data)
         await self._session.execute(stmt)
         await self._session.commit()
+
+    async def get_last(
+        self, /, returns: Sequence[str] | None = None, **data: str | int | UUID
+    ) -> Row[tuple]:
+        if returns is None:
+            returns = [c.name for c in self.model.__table__.columns]
+        query = (
+            select(*[getattr(self.model, c) for c in returns])
+            .filter_by(**data)
+            .order_by(self.model.id.desc())
+        )
+        res = await self._session.execute(query)
+        return res.first()
+
+    async def get_last_or_create(
+        self, /, returns: Sequence[str] | None = None, **data: str | int | UUID
+    ) -> Row[tuple]:
+        obj = await self.get_last(returns=returns, **data)
+        if obj is None:
+            obj = await self.add(**data)
+        return obj
+
+    async def remove(self, **data: str | int | UUID) -> None:
+        stmt = delete(self.model).filter_by(**data)
+        await self._session.execute(stmt)

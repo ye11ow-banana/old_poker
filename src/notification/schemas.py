@@ -1,12 +1,14 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel
 
 from auth.schemas import UserInfoDTO, UserIdDTO
 
 
-class GameInviteDTO(UserInfoDTO):
-    lobby_id: int
+class GameInviteDTO(BaseModel):
+    lobby_id: UUID
+    user: UserInfoDTO
 
 
 class NotificationDTO(BaseModel):

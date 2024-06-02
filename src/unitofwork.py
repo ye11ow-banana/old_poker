@@ -2,11 +2,13 @@ from abc import ABC, abstractmethod
 
 from auth.repositories import UserRepository, FriendshipRepository
 from database import async_session_maker
+from game.repositories import LobbyRepository
 
 
 class IUnitOfWork(ABC):
     users: UserRepository
     friendship: FriendshipRepository
+    lobbies: LobbyRepository
 
     @abstractmethod
     def __init__(self):
@@ -37,6 +39,7 @@ class UnitOfWork(IUnitOfWork):
         self._session = self.session_factory()
         self.users = UserRepository(self._session)
         self.friendship = FriendshipRepository(self._session)
+        self.lobbies = LobbyRepository(self._session)
 
     async def __aexit__(self, *args):
         await self.rollback()

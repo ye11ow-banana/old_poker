@@ -60,9 +60,6 @@ class User(Base):
     games_won: Mapped[list["Game"]] = relationship(
         "Game", secondary="game_winners", back_populates="winners"
     )
-    leader_of: Mapped[list["Game"]] = relationship(
-        "Game", back_populates="leader"
-    )
     lobbies: Mapped[list["Lobby"]] = relationship(
         "Lobby", secondary="lobby_players", back_populates="players"
     )

@@ -106,5 +106,32 @@ async def add_friend(
             )
     except WebSocketDisconnect:
         ws_manager.disconnect(user.id)
+
+
+@router.websocket("/ws/friends/invite")
+async def invite_friend(
+    websocket: WebSocket, user: WSAuthenticatedUserDep, uow: UOWDep
+) -> None:
+    await ws_manager.connect(websocket, user.id)
+    try:
+        while True:
+            data = await websocket.receive_json()
+            dto = UserIdDTO(**data)
+            lobby = await LobbyService(uow).get_or_create_lobby(user)
+            await ws_manager.send(
+                dto.id,
+                ResponseDTO[NotificationDTO](
+                    data=NotificationDTO(
+                        type="game_invite",
+                        data=GameInviteDTO(lobby_id=lobby.id, user=user),
+                    )
+                ),
+            )
     except WebSocketDisconnect:
         ws_manager.disconnect(user.id)
+
+
+# if lobby is not None:
+#     await LobbyService(uow).remove_user_from_lobby(
+#         user, lobby_id=lobby.id
+#     )
