@@ -42,9 +42,9 @@ class GameWinner(Base):
 
 
 class GameType(enum.Enum):
-    multiplayer = "Multiplayer"
-    single = "Single"
-    analysis = "Analysis"
+    multiplayer = "multiplayer"
+    single = "single"
+    analysis = "analysis"
 
 
 class Game(Base):

@@ -1,3 +1,4 @@
+from fastapi.encoders import jsonable_encoder
 from fastapi.websockets import WebSocket
 
 from schemas import ResponseDTO
@@ -17,6 +18,15 @@ class WSConnectionManager:
     async def broadcast(self, data: ResponseDTO) -> None:
         for connection in self._active_connections.values():
             await connection.send_json(data.model_dump(by_alias=True))
+
+    async def send(self, user_id: str, data: ResponseDTO) -> None:
+        try:
+            await self._active_connections[user_id].send_json(
+                jsonable_encoder(data.model_dump(by_alias=True))
+            )
+        except KeyError:
+            # User is not connected
+            pass
 
     def get_connections_count(self) -> int:
         return len(self._active_connections)

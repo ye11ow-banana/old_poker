@@ -1,7 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Sequence, Type
+from uuid import UUID
 
-from sqlalchemy import select, func, Row
+from sqlalchemy import select, func, Row, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import Base
@@ -17,6 +18,26 @@ class IRepository(ABC):
 
     @abstractmethod
     async def add(self, **insert_data) -> Base:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def isearch_count(self, **data: str | int) -> int:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_paginated_all(
+        self,
+        /,
+        pagination: Pagination,
+        returns: Sequence[str] | None = None,
+        **data: str | int,
+    ) -> Sequence[Row]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_all(
+        self, /, returns: Sequence[str] | None = None, **data: str | int | UUID
+    ) -> Sequence[Row]:
         raise NotImplementedError
 
 
@@ -43,7 +64,12 @@ class SQLAlchemyRepository(IRepository):
         await self._session.flush()
         return new_model_object
 
-    async def get_total_count(self, **data: str | int) -> int:
+    async def isearch_count(self, **data: str | int) -> int:
+        """
+        Search for the count of rows that match the given data.
+
+        Case-insensitive search.
+        """
         query = select(func.count())
         for key, value in data.items():
             column = getattr(self.model, key)
@@ -67,3 +93,21 @@ class SQLAlchemyRepository(IRepository):
         query = query.offset(pagination.get_offset()).limit(pagination.limit)
         result = await self._session.execute(query)
         return result.fetchall()
+
+    async def get_all(
+        self, /, returns: Sequence[str] | None = None, **data: str | int | UUID
+    ) -> Sequence[Row]:
+        if returns is None:
+            returns = [c.name for c in self.model.__table__.columns]
+        query = select(*[getattr(self.model, c) for c in returns]).filter_by(
+            **data
+        )
+        res = await self._session.execute(query)
+        return res.fetchall()
+
+    async def update(
+        self, /, what_to_update: dict[str, str | int | UUID], **data: str | int
+    ) -> None:
+        stmt = update(self.model).filter_by(**what_to_update).values(**data)
+        await self._session.execute(stmt)
+        await self._session.commit()

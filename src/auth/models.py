@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import enum
 from typing import TYPE_CHECKING
 import uuid
 
@@ -13,9 +14,18 @@ if TYPE_CHECKING:
     from game.models import Game
 
 
+class FriendshipStatus(enum.Enum):
+    requested = "requested"
+    accepted = "accepted"
+    declined = "declined"
+
+
 class Friendship(Base):
     __tablename__ = "friendships"
 
+    status: Mapped[FriendshipStatus] = mapped_column(
+        default=FriendshipStatus.requested
+    )
     left_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),

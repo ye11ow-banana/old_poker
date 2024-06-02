@@ -52,3 +52,7 @@ class UserInCreateDTO(BaseModel):
         if repeat_password != info.data.get("password", ""):
             raise ValueError("Passwords do not match")
         return repeat_password
+
+
+class UserIdDTO(BaseModel):
+    id: UUID

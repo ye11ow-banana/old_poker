@@ -1,6 +1,9 @@
 from abc import ABC, abstractmethod
 
+from sqlalchemy.exc import IntegrityError
+
 from auth.schemas import UserInfoDTO
+from notification.schemas import FriendNotificationDTO
 from unitofwork import IUnitOfWork
 
 
@@ -10,6 +13,12 @@ class IFriendService(ABC):
 
     @abstractmethod
     async def get_friends(self, user: UserInfoDTO) -> list[UserInfoDTO]:
+        raise NotImplementedError
+
+    @abstractmethod
+    async def get_friend_requests(
+        self, user: UserInfoDTO
+    ) -> list[UserInfoDTO]:
         raise NotImplementedError
 
 
@@ -28,3 +37,43 @@ class M2MFriendService(IFriendService):
                     "username",
                 ),
             )
+
+    async def get_friend_requests(
+        self, user: UserInfoDTO
+    ) -> list[UserInfoDTO]:
+        return await self._uow.users.get_possible_friends(
+            user_id=user.id, returns=("id", "username"), status="requested"
+        )
+
+    async def process_friend_request(
+        self, user: UserInfoDTO, data: FriendNotificationDTO
+    ) -> None:
+        if data.type == "friend_request":
+            try:
+                async with self._uow:
+                    await self._uow.friendship.add(
+                        left_user_id=user.id,
+                        right_user_id=data.data.id,
+                        status="requested",
+                    )
+                    await self._uow.commit()
+            except IntegrityError:
+                # Friendship already exists
+                pass
+        elif data.type == "friend_request_response":
+            what_to_update = {
+                "left_user_id": data.data.id,
+                "right_user_id": user.id,
+            }
+            if data.data.status == "accept":
+                async with self._uow:
+                    await self._uow.friendship.update(
+                        what_to_update, status="accepted"
+                    )
+                    await self._uow.commit()
+            elif data.data.status == "decline":
+                async with self._uow:
+                    await self._uow.friendship.update(
+                        what_to_update, status="declined"
+                    )
+                    await self._uow.commit()

@@ -1,4 +1,5 @@
-from fastapi import APIRouter, status, HTTPException
+from fastapi import APIRouter, status, HTTPException, WebSocket
+from fastapi.websockets import WebSocketDisconnect
 
 from auth.dependencies import (
     AuthenticatedUserDep,
@@ -10,6 +11,9 @@ from auth.schemas import UserInCreateDTO, UserInLoginDTO, TokenDTO, UserInfoDTO
 from auth.services.authentication import JWTAuthenticationService
 from auth.services.friend import M2MFriendService
 from auth.services.registration import RegistrationService
+from game.dependencies import WSAuthenticatedUserDep
+from managers import ws_manager
+from notification.schemas import NotificationDTO, FriendNotificationDTO
 from schemas import ResponseDTO
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
@@ -55,3 +59,33 @@ async def get_friends(
     except ValueError as e:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=str(e))
     return ResponseDTO[list[UserInfoDTO]](data=friends)
+
+
+@router.websocket("/ws/friends")
+async def add_friend(
+    websocket: WebSocket, user: WSAuthenticatedUserDep, uow: UOWDep
+) -> None:
+    await ws_manager.connect(websocket, user.id)
+    friend_service = M2MFriendService(uow)
+    requests = await friend_service.get_friend_requests(user)
+    await ws_manager.send(
+        user.id,
+        ResponseDTO[NotificationDTO](
+            data=NotificationDTO(type="friend_request", data=requests)
+        ),
+    )
+    try:
+        while True:
+            data = await websocket.receive_json()
+            dto = FriendNotificationDTO(**data)
+            await friend_service.process_friend_request(user, dto)
+            if dto.type == "friend_request_response":
+                continue
+            await ws_manager.send(
+                dto.data.id,
+                ResponseDTO[NotificationDTO](
+                    data=NotificationDTO(type=dto.type, data=user)
+                ),
+            )
+    except WebSocketDisconnect:
+        ws_manager.disconnect(user.id)

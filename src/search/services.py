@@ -26,7 +26,7 @@ class UserSearchService(ISearchService):
         self, filter_obj: UserSearchDTO
     ) -> PaginationDTO[UserInfoDTO]:
         async with self._uow:
-            total_count = await self._uow.users.get_total_count(
+            total_count = await self._uow.users.isearch_count(
                 username=filter_obj.username
             )
             users = await self._uow.users.get_paginated_all(

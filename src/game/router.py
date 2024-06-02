@@ -9,7 +9,7 @@ from schemas import ResponseDTO
 router = APIRouter(prefix="/games", tags=["Game"])
 
 
-@router.websocket("/ws/search/")
+@router.websocket("/ws/search")
 async def search_game(websocket: WebSocket, user: WSAuthenticatedUserDep):
     await ws_manager.connect(websocket, user.id)
     user_ids = ws_manager.get_active_user_ids()

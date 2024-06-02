@@ -1,4 +1,4 @@
-from typing import Sequence
+from typing import Sequence, Literal
 from uuid import UUID
 
 from sqlalchemy import select, or_
@@ -33,7 +33,7 @@ class UserRepository(SQLAlchemyRepository):
         """
         if returns is None:
             returns = [c.name for c in self.model.__table__.columns]
-        stmt = (
+        query = (
             select(*[getattr(self.model, c) for c in returns])
             .join(
                 Friendship,
@@ -50,7 +50,7 @@ class UserRepository(SQLAlchemyRepository):
                 self.model.id != user_id,
             )
         )
-        res = await self._session.execute(stmt)
+        res = await self._session.execute(query)
         return [UserInfoDTO.model_validate(friend) for friend in res.all()]
 
     async def get_paginated_all(
@@ -62,3 +62,34 @@ class UserRepository(SQLAlchemyRepository):
     ) -> list[UserInfoDTO]:
         users = await super().get_paginated_all(pagination, returns, **data)
         return [UserInfoDTO.model_validate(user) for user in users]
+
+    async def get_possible_friends(
+        self,
+        /,
+        user_id: UUID,
+        returns: Sequence[str] | None = None,
+        **data: str | int | UUID,
+    ) -> list[UserInfoDTO]:
+        """
+        Get all possible friends of a user by user_id.
+
+        Possible friends are users who are not friends yet with the user and are not the user.
+        They are waiting for the user to accept friendship.
+        """
+        if returns is None:
+            returns = [c.name for c in self.model.__table__.columns]
+        query = (
+            select(*[getattr(self.model, c) for c in returns])
+            .join(
+                Friendship,
+                self.model.id == Friendship.left_user_id,
+            )
+            .filter(Friendship.right_user_id == user_id)
+            .filter_by(**data)
+        )
+        res = await self._session.execute(query)
+        return [UserInfoDTO.model_validate(friend) for friend in res.all()]
+
+
+class FriendshipRepository(SQLAlchemyRepository):
+    model = models.Friendship
