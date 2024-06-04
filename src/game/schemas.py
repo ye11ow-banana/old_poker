@@ -52,3 +52,23 @@ class CardDTO(BaseModel):
 
 class UserCardListDTO(UserInfoDTO):
     cards: list[CardDTO]
+
+
+class FullCardInfoDTO(BaseModel):
+    id: UUID
+    suit: Literal["H", "D", "C", "S"]
+    value: int
+    user_id: UUID
+
+
+class FullUserCardInfoDTO(UserInfoDTO):
+    cards: list[FullCardInfoDTO]
+
+
+class FullGameCardInfoDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    users: list[FullUserCardInfoDTO]
+    entry: list[FullCardInfoDTO]
+    trump_suit: Literal["H", "D", "C", "S"] | None
+    trump_value: int | None

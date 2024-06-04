@@ -9,6 +9,7 @@ from game.schemas import (
     GameInfoDTO,
     CardDTO,
     UserCardListDTO,
+    FullGameCardInfoDTO,
 )
 from unitofwork import IUnitOfWork
 
@@ -23,6 +24,9 @@ class GameService:
     def __init__(self, uow: IUnitOfWork) -> None:
         self._uow: IUnitOfWork = uow
 
+    async def get_full_game_info(self, game_id: UUID) -> FullGameCardInfoDTO:
+        return await self._uow.games.get_full_game_info(game_id)
+
     async def create_game(
         self, players: list[LobbyUserInfoDTO], create_game: bool
     ) -> GameInfoDTO | None:
@@ -30,7 +34,7 @@ class GameService:
             return
         async with self._uow:
             game = await self._uow.games.add(
-                type="multiplayer",
+                type="MULTIPLAYER",
                 players_number=len(players),
             )
             for player in players:

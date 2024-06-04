@@ -42,7 +42,7 @@ class M2MFriendService(IFriendService):
         self, user: UserInfoDTO
     ) -> list[UserInfoDTO]:
         return await self._uow.users.get_possible_friends(
-            user_id=user.id, returns=("id", "username"), status="requested"
+            user_id=user.id, returns=("id", "username"), status="REQUESTED"
         )
 
     async def process_friend_request(
@@ -54,7 +54,7 @@ class M2MFriendService(IFriendService):
                     await self._uow.friendship.add(
                         left_user_id=user.id,
                         right_user_id=data.data.id,
-                        status="requested",
+                        status="REQUESTED",
                     )
                     await self._uow.commit()
             except IntegrityError:
@@ -68,12 +68,12 @@ class M2MFriendService(IFriendService):
             if data.data.status == "accept":
                 async with self._uow:
                     await self._uow.friendship.update(
-                        what_to_update, status="accepted"
+                        what_to_update, status="ACCEPTED"
                     )
                     await self._uow.commit()
             elif data.data.status == "decline":
                 async with self._uow:
                     await self._uow.friendship.update(
-                        what_to_update, status="declined"
+                        what_to_update, status="DECLINED"
                     )
                     await self._uow.commit()

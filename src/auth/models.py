@@ -15,16 +15,16 @@ if TYPE_CHECKING:
 
 
 class FriendshipStatus(enum.Enum):
-    requested = "requested"
-    accepted = "accepted"
-    declined = "declined"
+    REQUESTED = "REQUESTED"
+    ACCEPTED = "ACCEPTED"
+    DECLINED = "DECLINED"
 
 
 class Friendship(Base):
     __tablename__ = "friendships"
 
     status: Mapped[FriendshipStatus] = mapped_column(
-        default=FriendshipStatus.requested
+        default=FriendshipStatus.REQUESTED
     )
     left_user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

@@ -5,7 +5,12 @@ from fastapi.websockets import WebSocketDisconnect
 
 from dependencies import UOWDep
 from game.dependencies import WSAuthenticatedUserDep
-from game.schemas import PlayersInSearchCountDTO, LobbyUserInfoDTO, GameInfoDTO
+from game.schemas import (
+    PlayersInSearchCountDTO,
+    LobbyUserInfoDTO,
+    GameInfoDTO,
+    FullGameCardInfoDTO,
+)
 from game.services.game import GameService
 from game.services.lobby import LobbyService
 from managers import ws_manager
@@ -55,4 +60,27 @@ async def get_lobby(
                 await ws_manager.broadcast(ResponseDTO[GameInfoDTO](data=game))
     except Exception:
         await service.remove_user_from_lobby(user, lobby_id=lobby_id)
+        ws_manager.disconnect(user.id)
+
+
+@router.websocket("/ws/{game_id}")
+async def play_game(
+    websocket: WebSocket,
+    user: WSAuthenticatedUserDep,
+    uow: UOWDep,
+    game_id: UUID,
+) -> None:
+    await ws_manager.connect(websocket, user.id)
+    service = GameService(uow)
+    full_game_info = await service.get_full_game_info(game_id)
+    await ws_manager.broadcast(
+        ResponseDTO[FullGameCardInfoDTO](data=full_game_info)
+    )
+    try:
+        while True:
+            data = await websocket.receive_json()
+            # todo: change card
+            # todo: return all cards
+            await ws_manager.broadcast({"user": str(user.id), "data": data})
+    except WebSocketDisconnect:
         ws_manager.disconnect(user.id)

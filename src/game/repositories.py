@@ -3,8 +3,14 @@ from uuid import UUID
 
 from sqlalchemy import select
 
+from auth import models as auth_models
 from game import models
-from game.schemas import LobbyInfoDTO, LobbyIdDTO, LobbyUserInfoDTO
+from game.schemas import (
+    LobbyInfoDTO,
+    LobbyIdDTO,
+    LobbyUserInfoDTO,
+    FullGameCardInfoDTO,
+)
 from repository import SQLAlchemyRepository
 
 
@@ -54,6 +60,34 @@ class LobbyPlayerRepository(SQLAlchemyRepository):
 
 class GameRepository(SQLAlchemyRepository):
     model = models.Game
+
+    async def get_full_game_info(self, game_id: UUID) -> FullGameCardInfoDTO:
+        query = (
+            select(
+                auth_models.User.id,
+                auth_models.User.username,
+                models.Card.id,
+                models.Card.value,
+                models.Card.suit,
+                models.Card.entry_id,
+                models.Set.trump_suit,
+                models.Set.trump_value,
+                models.Set.opening_player_id,
+            )
+            .join(
+                models.Dealing, models.Dealing.user_id == auth_models.User.id
+            )
+            .join(models.Set, models.Dealing.set_id == models.Set.id)
+            .join(models.Card, models.Card.dealing_id == models.Dealing.id)
+            .filter(
+                models.Set.game_id == game_id,
+                models.Set.is_current_round == True,
+            )
+        )
+        res = await self._session.execute(query)
+        print(res.fetchall())
+        1 / 0
+        return FullGameCardInfoDTO.model_validate(res.fetchall())
 
 
 class GamePlayerRepository(SQLAlchemyRepository):

@@ -42,9 +42,9 @@ class GameWinner(Base):
 
 
 class GameType(enum.Enum):
-    multiplayer = "multiplayer"
-    single = "single"
-    analysis = "analysis"
+    MULTIPLAYER = "MULTIPLAYER"
+    SINGLE = "SINGLE"
+    ANALYSIS = "ANALYSIS"
 
 
 class Game(Base):
@@ -131,10 +131,10 @@ class Lobby(Base):
 
 
 class Suit(enum.Enum):
-    hearts = "H"
-    diamonds = "D"
-    clubs = "C"
-    spades = "S"
+    H = "H"
+    D = "D"
+    C = "C"
+    S = "S"
 
 
 class Set(Base):
