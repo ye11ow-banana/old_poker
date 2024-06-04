@@ -131,19 +131,27 @@ class Lobby(Base):
 
 
 class Suit(enum.Enum):
-    hearts = "hearts"
-    diamonds = "diamonds"
-    clubs = "clubs"
-    spades = "spades"
+    hearts = "H"
+    diamonds = "D"
+    clubs = "C"
+    spades = "S"
 
 
 class Set(Base):
     __tablename__ = "sets"
 
     id: Mapped[uuidpk]
-    trump_suit: Mapped[Suit] = mapped_column(nullable=False)
+    trump_suit: Mapped[Suit] = mapped_column(nullable=True)
+    trump_value: Mapped[int] = mapped_column(nullable=True)
     round_name: Mapped[str] = mapped_column(nullable=False)
+    is_current_round: Mapped[bool] = mapped_column(
+        default=False, nullable=False
+    )
     dealer_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+    )
+    opening_player_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
     )
@@ -151,6 +159,14 @@ class Set(Base):
         UUID(as_uuid=True),
         ForeignKey("games.id", ondelete="CASCADE"),
     )
+
+    @orm.validates("trump_value")
+    def validate_trump_value(self, _, value: int | None) -> int | None:
+        if value is None:
+            return value
+        if not 6 <= value <= 14:
+            raise ValueError(f"Value should be between 6 and 14, got {value}")
+        return value
 
 
 class Dealing(Base):
@@ -191,8 +207,8 @@ class Card(Base):
     __tablename__ = "cards"
 
     id: Mapped[uuidpk]
-    value: Mapped[int] = mapped_column(nullable=False)
     suit: Mapped[Suit] = mapped_column(nullable=False)
+    value: Mapped[int] = mapped_column(nullable=False)
     dealing_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("dealings.id", ondelete="CASCADE"),
@@ -200,6 +216,7 @@ class Card(Base):
     entry_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("entries.id", ondelete="CASCADE"),
+        nullable=True,
     )
 
     @orm.validates("value")

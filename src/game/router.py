@@ -53,7 +53,6 @@ async def get_lobby(
             game = await GameService(uow).create_game(players, create_game)
             if game is not None:
                 await ws_manager.broadcast(ResponseDTO[GameInfoDTO](data=game))
-    except Exception as e:
-        raise ValueError(str(e))
+    except Exception:
         await service.remove_user_from_lobby(user, lobby_id=lobby_id)
         ws_manager.disconnect(user.id)

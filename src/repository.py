@@ -56,6 +56,12 @@ class IRepository(ABC):
     async def remove(self, **data: str | int | UUID) -> None:
         raise NotImplementedError
 
+    @abstractmethod
+    async def bulk_add(
+        self, inserts: list[dict[str, str | int | UUID | None]]
+    ) -> None:
+        raise NotImplementedError
+
 
 class SQLAlchemyRepository(IRepository):
     model: Type[Base]
@@ -152,3 +158,8 @@ class SQLAlchemyRepository(IRepository):
     async def remove(self, **data: str | int | UUID) -> None:
         stmt = delete(self.model).filter_by(**data)
         await self._session.execute(stmt)
+
+    async def bulk_add(
+        self, inserts: list[dict[str, str | int | UUID | None]]
+    ) -> None:
+        await self._session.execute(self.model.__table__.insert(), inserts)

@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict
@@ -39,3 +40,15 @@ class GameInfoDTO(BaseModel):
     id: UUID
     players: list[UserInfoDTO]
     created_at: datetime
+
+
+class CardDTO(BaseModel):
+    suit: Literal["H", "D", "C", "S"]
+    value: int
+
+    class Config:
+        frozen = True
+
+
+class UserCardListDTO(UserInfoDTO):
+    cards: list[CardDTO]

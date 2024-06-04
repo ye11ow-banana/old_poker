@@ -58,3 +58,15 @@ class GameRepository(SQLAlchemyRepository):
 
 class GamePlayerRepository(SQLAlchemyRepository):
     model = models.GamePlayer
+
+
+class SetRepository(SQLAlchemyRepository):
+    model = models.Set
+
+
+class DealingRepository(SQLAlchemyRepository):
+    model = models.Dealing
+
+
+class CardRepository(SQLAlchemyRepository):
+    model = models.Card
