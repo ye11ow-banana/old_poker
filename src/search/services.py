@@ -16,14 +16,14 @@ class ISearchService(ABC):
 
     @abstractmethod
     async def paginated_search(
-        self, filter_obj: BaseModel
+        self, filter_obj: BaseModel, current_user: UserInfoDTO
     ) -> PaginationDTO[list[BaseModel]]:
         raise NotImplementedError
 
 
 class UserSearchService(ISearchService):
     async def paginated_search(
-        self, filter_obj: UserSearchDTO
+        self, filter_obj: UserSearchDTO, current_user: UserInfoDTO
     ) -> PaginationDTO[UserInfoDTO]:
         async with self._uow:
             total_count = await self._uow.users.isearch_count(
@@ -34,6 +34,7 @@ class UserSearchService(ISearchService):
                 returns=("id", "username"),
                 username=filter_obj.username,
             )
+            users = [user for user in users if user.id != current_user.id]
         return PaginationDTO[UserInfoDTO](
             page_count=self._pagination.get_page_count(total_count),
             total_count=total_count,
