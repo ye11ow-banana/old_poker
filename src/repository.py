@@ -127,8 +127,15 @@ class SQLAlchemyRepository(IRepository):
         res = await self._session.execute(query)
         return res.fetchall()
 
+    async def count(self, /, **data: str | int | UUID) -> int:
+        query = select(func.count()).filter_by(
+            **data
+        )
+        res = await self._session.execute(query)
+        return res.scalar()
+
     async def update(
-        self, /, what_to_update: dict[str, str | int | UUID], **data: str | int
+        self, /, what_to_update: dict[str, str | int | UUID], **data: str | int | UUID
     ) -> None:
         stmt = update(self.model).filter_by(**what_to_update).values(**data)
         await self._session.execute(stmt)

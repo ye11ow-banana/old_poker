@@ -9,7 +9,8 @@ from game.schemas import (
     GameInfoDTO,
     CardDTO,
     UserCardListDTO,
-    FullGameCardInfoDTO,
+    FullGameCardInfoDTO, FullUserCardInfoDTO, FullCardInfoDTO,
+    FullEntryCardInfoDTO, ProcessCardDTO
 )
 from unitofwork import IUnitOfWork
 
@@ -24,8 +25,58 @@ class GameService:
     def __init__(self, uow: IUnitOfWork) -> None:
         self._uow: IUnitOfWork = uow
 
+    async def process_card(self, card: ProcessCardDTO, game_id: UUID) -> None:
+        async with self._uow:
+            entry = await self._uow.entries.get_or_create(
+                set_id=card.set_id,
+                owner_id=card.owner_id,
+            )
+            await self._uow.cards.update(
+                {"id": card.card_id},
+                entry_id=entry.id,
+            )
+            if card.is_round_end:
+                await self._uow.sets.make_new_current(game_id, card.set_id)
+            await self._uow.commit()
+
     async def get_full_game_info(self, game_id: UUID) -> FullGameCardInfoDTO:
-        return await self._uow.games.get_full_game_info(game_id)
+        flatten_info_list = await self._uow.games.get_full_game_info(game_id)
+        user_cards = []
+        entry_cards = []
+        for info in flatten_info_list:
+            card = FullCardInfoDTO(
+                id=info.card_id,
+                suit=info.suit,
+                value=info.value,
+                user_id=info.user_id,
+                entry_id=info.entry_id,
+            )
+            if info.entry_id is None:
+                user_cards.append(card)
+            else:
+                entry_cards.append(card)
+        user_ids = {user.user_id for user in flatten_info_list}
+        return FullGameCardInfoDTO(
+            set_id=flatten_info_list[0].set_id,
+            users=[
+                FullUserCardInfoDTO(
+                    id=info.user_id,
+                    username=info.username,
+                    cards=[
+                        card for card in user_cards
+                        if card.user_id == info.user_id
+                    ],
+                )
+                for info in flatten_info_list
+                if info.user_id in user_ids
+            ],
+            entry=FullEntryCardInfoDTO(
+                id=entry_cards[0].entry_id,
+                cards=entry_cards,
+            ) if entry_cards else None,
+            trump_suit=flatten_info_list[0].trump_suit,
+            trump_value=flatten_info_list[0].trump_value,
+        )
 
     async def create_game(
         self, players: list[LobbyUserInfoDTO], create_game: bool
@@ -62,7 +113,7 @@ class GameService:
         dealer = next(circular_players_generator)
         opening_player = next(circular_players_generator)
         is_current_round = True
-        for set_name in self._generate_sets(len(players)):
+        for index, set_name in enumerate(self._generate_sets(len(players))):
             users_with_cards, used_cards = self._generate_cards_for_set(
                 set_name, players
             )
@@ -71,6 +122,7 @@ class GameService:
                 trump_suit=trump_suit,
                 trump_value=trump_value,
                 round_name=set_name,
+                round_number=index + 1,
                 is_current_round=is_current_round,
                 dealer_id=dealer.id,
                 opening_player_id=opening_player.id,

@@ -59,16 +59,51 @@ class FullCardInfoDTO(BaseModel):
     suit: Literal["H", "D", "C", "S"]
     value: int
     user_id: UUID
+    entry_id: UUID | None = None
 
 
 class FullUserCardInfoDTO(UserInfoDTO):
     cards: list[FullCardInfoDTO]
 
 
+class FlattenFullGameCardInfoDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    set_id: UUID
+    user_id: UUID
+    username: str
+    card_id: UUID
+    suit: Literal["H", "D", "C", "S"]
+    value: int
+    entry_id: UUID | None = None
+    trump_suit: Literal["H", "D", "C", "S"] | None = None
+    trump_value: int | None = None
+    opening_player_id: UUID
+
+
+class FullEntryCardInfoDTO(BaseModel):
+    id: UUID
+    cards: list[FullCardInfoDTO]
+
+
 class FullGameCardInfoDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    set_id: UUID
     users: list[FullUserCardInfoDTO]
-    entry: list[FullCardInfoDTO]
-    trump_suit: Literal["H", "D", "C", "S"] | None
-    trump_value: int | None
+    entry: FullEntryCardInfoDTO | None = None
+    trump_suit: Literal["H", "D", "C", "S"] | None = None
+    trump_value: int | None = None
+
+
+class ProcessCardDTO(BaseModel):
+    card_id: UUID
+    owner_id: UUID
+    set_id: UUID
+    is_round_end: bool = False
+
+
+class EntryIdDTO(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID

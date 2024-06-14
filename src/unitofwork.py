@@ -10,6 +10,7 @@ from game.repositories import (
     SetRepository,
     DealingRepository,
     CardRepository,
+    EntryRepository,
 )
 
 
@@ -23,6 +24,7 @@ class IUnitOfWork(ABC):
     sets: SetRepository
     dealings: DealingRepository
     cards: CardRepository
+    entries: EntryRepository
 
     @abstractmethod
     def __init__(self):
@@ -60,6 +62,7 @@ class UnitOfWork(IUnitOfWork):
         self.sets = SetRepository(self._session)
         self.dealings = DealingRepository(self._session)
         self.cards = CardRepository(self._session)
+        self.entries = EntryRepository(self._session)
 
     async def __aexit__(self, *args):
         await self.rollback()

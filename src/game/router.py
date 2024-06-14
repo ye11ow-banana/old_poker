@@ -9,7 +9,7 @@ from game.schemas import (
     PlayersInSearchCountDTO,
     LobbyUserInfoDTO,
     GameInfoDTO,
-    FullGameCardInfoDTO,
+    FullGameCardInfoDTO, ProcessCardDTO,
 )
 from game.services.game import GameService
 from game.services.lobby import LobbyService
@@ -79,8 +79,10 @@ async def play_game(
     try:
         while True:
             data = await websocket.receive_json()
-            # todo: change card
-            # todo: return all cards
-            await ws_manager.broadcast({"user": str(user.id), "data": data})
+            await service.process_card(ProcessCardDTO(**data), game_id)
+            full_game_info = await service.get_full_game_info(game_id)
+            await ws_manager.broadcast(
+                ResponseDTO[FullGameCardInfoDTO](data=full_game_info)
+            )
     except WebSocketDisconnect:
         ws_manager.disconnect(user.id)
