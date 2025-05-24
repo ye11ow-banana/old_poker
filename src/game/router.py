@@ -1,88 +1,86 @@
 from uuid import UUID
+from typing import Dict, Set
 
-from fastapi import APIRouter, WebSocket
-from fastapi.websockets import WebSocketDisconnect
+from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
-from dependencies import UOWDep
-from game.dependencies import WSAuthenticatedUserDep
-from game.schemas import (
-    PlayersInSearchCountDTO,
-    LobbyUserInfoDTO,
-    GameInfoDTO,
-    FullGameCardInfoDTO, ProcessCardDTO,
-)
-from game.services.game import GameService
+from auth.schemas import UserInfoDTO
+from game.dependencies import WSAuthenticatedUserDep, UOWDep, \
+    _WSAuthenticatedUser
 from game.services.lobby import LobbyService
+from game.services.game import GameService
+from game.schemas import (
+    LobbyUserInfoDTO,
+    InvitePayload,
+    ReadyPayload,
+    StartPayload,
+    LobbyEventDTO,
+)
 from managers import ws_manager
-from schemas import ResponseDTO
+from unitofwork import IUnitOfWork
 
 router = APIRouter(prefix="/games", tags=["Game"])
 
-
-@router.websocket("/ws/search")
-async def search_game(websocket: WebSocket, user: WSAuthenticatedUserDep):
-    await ws_manager.connect(websocket, user.id)
-    user_ids = ws_manager.get_active_user_ids()
-    players_in_search_count = ws_manager.get_connections_count()
-    _ = PlayersInSearchCountDTO(count=players_in_search_count)
-    await ws_manager.broadcast(ResponseDTO[PlayersInSearchCountDTO](data=_))
-    try:
-        while True:
-            data = await websocket.receive_json()
-            await ws_manager.broadcast({"user": str(user.id), "data": data})
-    except WebSocketDisconnect:
-        ws_manager.disconnect(user.id)
+_lobby_ready: Dict[str, Set[str]] = {}
 
 
-@router.websocket("/ws/lobbies/{lobby_id}")
-async def get_lobby(
+@router.websocket("/ws/notifications")
+async def notifications_ws(
     websocket: WebSocket,
     user: WSAuthenticatedUserDep,
-    uow: UOWDep,
-    lobby_id: UUID,
-) -> None:
-    await ws_manager.connect(websocket, user.id)
-    service = LobbyService(uow)
-    try:
-        await service.add_user_to_lobby(user, lobby_id=lobby_id)
-    except ValueError:
-        ws_manager.disconnect(user.id)
-        return
-    players = await service.get_players_in_lobby(lobby_id=lobby_id)
-    await ws_manager.broadcast(ResponseDTO[LobbyUserInfoDTO](data=players))
+):
+    user_id = str(user.id)
+    await ws_manager.connect_notification_socket(user_id, websocket)
     try:
         while True:
-            data = await websocket.receive_json()
-            create_game = data.get("create_game", False)
-            players = await service.get_players_in_lobby(lobby_id=lobby_id)
-            game = await GameService(uow).create_game(players, create_game)
-            if game is not None:
-                await ws_manager.broadcast(ResponseDTO[GameInfoDTO](data=game))
-    except Exception:
-        await service.remove_user_from_lobby(user, lobby_id=lobby_id)
-        ws_manager.disconnect(user.id)
-
-
-@router.websocket("/ws/{game_id}")
-async def play_game(
-    websocket: WebSocket,
-    user: WSAuthenticatedUserDep,
-    uow: UOWDep,
-    game_id: UUID,
-) -> None:
-    await ws_manager.connect(websocket, user.id)
-    service = GameService(uow)
-    full_game_info = await service.get_full_game_info(game_id)
-    await ws_manager.broadcast(
-        ResponseDTO[FullGameCardInfoDTO](data=full_game_info)
-    )
-    try:
-        while True:
-            data = await websocket.receive_json()
-            await service.process_card(ProcessCardDTO(**data), game_id)
-            full_game_info = await service.get_full_game_info(game_id)
-            await ws_manager.broadcast(
-                ResponseDTO[FullGameCardInfoDTO](data=full_game_info)
-            )
+            await websocket.receive_text()
     except WebSocketDisconnect:
-        ws_manager.disconnect(user.id)
+        await ws_manager.disconnect(user_id)
+
+
+@router.websocket("/ws/lobby/{lobby_id}")
+async def lobby_ws_endpoint(
+    websocket: WebSocket,
+    lobby_id: str,
+    user: UserInfoDTO = Depends(WSAuthenticatedUserDep),
+    uow: IUnitOfWork = Depends(UOWDep),
+):
+    user_id = str(user.id)
+    # Register connection to lobby-specific channel
+    await ws_manager.connect(websocket, user_id, lobby_id)
+    _lobby_ready.setdefault(lobby_id, set())
+    try:
+        while True:
+            message = await websocket.receive_json()
+            event = message.get("event")
+            payload = message.get("data", {})
+
+            if event == "invite":
+                invite = InvitePayload(**payload)
+                await LobbyService(uow).add_user_to_lobby(
+                    UserInfoDTO(id=UUID(invite.invitee_id), username=""),
+                    invite.lobby_id
+                )
+                event_dto = LobbyEventDTO(event="invite", data=invite.dict())
+                # Notify via notifications channel
+                await ws_manager.send_to_user(invite.invitee_id, event_dto)
+
+            elif event == "ready":
+                ready = ReadyPayload(**payload)
+                _lobby_ready[lobby_id].add(ready.user_id)
+                event_dto = LobbyEventDTO(event="ready", data=ready.dict())
+                await ws_manager.broadcast_to_lobby(lobby_id, event_dto)
+                members = await ws_manager.get_lobby_user_ids(lobby_id)
+                if _lobby_ready[lobby_id] >= set(members):
+                    players_info = [
+                        LobbyUserInfoDTO(id=UUID(uid), username="", is_leader=False)
+                        for uid in members
+                    ]
+                    game_info = await GameService(uow).create_game(players_info, True)
+                    start = StartPayload(game_id=str(game_info.id), lobby_id=lobby_id)
+                    event_dto = LobbyEventDTO(event="start", data=start.dict())
+                    await ws_manager.broadcast_to_lobby(lobby_id, event_dto)
+                    _lobby_ready[lobby_id].clear()
+
+    except WebSocketDisconnect:
+        await ws_manager.disconnect(user_id, lobby_id)
+        _lobby_ready[lobby_id].discard(user_id)

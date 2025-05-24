@@ -28,7 +28,7 @@ class GameService:
     async def process_card(self, card: ProcessCardDTO, game_id: UUID) -> None:
         async with self._uow:
             entry = await self._uow.entries.get_or_create(
-                set_id=card.set_id,
+                round_id=card.round_id,
                 owner_id=card.owner_id,
             )
             await self._uow.cards.update(
@@ -36,7 +36,7 @@ class GameService:
                 entry_id=entry.id,
             )
             if card.is_round_end:
-                await self._uow.sets.make_new_current(game_id, card.set_id)
+                await self._uow.rounds.make_new_current(game_id, card.round_id)
             await self._uow.commit()
 
     async def get_full_game_info(self, game_id: UUID) -> FullGameCardInfoDTO:
@@ -57,7 +57,7 @@ class GameService:
                 entry_cards.append(card)
         user_ids = {user.user_id for user in flatten_info_list}
         return FullGameCardInfoDTO(
-            set_id=flatten_info_list[0].set_id,
+            round_id=flatten_info_list[0].round_id,
             users=[
                 FullUserCardInfoDTO(
                     id=info.user_id,
@@ -93,7 +93,7 @@ class GameService:
                     game_id=game.id,
                     user_id=player.id,
                 )
-            await self.create_sets_with_cards(game.id, players)
+            await self.create_rounds_with_cards(game.id, players)
             await self._uow.commit()
         return GameInfoDTO(
             id=game.id,
@@ -104,7 +104,7 @@ class GameService:
             created_at=game.created_at,
         )
 
-    async def create_sets_with_cards(
+    async def create_rounds_with_cards(
         self,
         game_id: UUID,
         players: list[LobbyUserInfoDTO],
@@ -113,15 +113,15 @@ class GameService:
         dealer = next(circular_players_generator)
         opening_player = next(circular_players_generator)
         is_current_round = True
-        for index, set_name in enumerate(self._generate_sets(len(players))):
-            users_with_cards, used_cards = self._generate_cards_for_set(
-                set_name, players
+        for index, round_name in enumerate(self._generate_rounds(len(players))):
+            users_with_cards, used_cards = self._generate_cards_for_round(
+                round_name, players
             )
-            trump_suit, trump_value = self._pick_trump(set_name, used_cards)
-            set_obj = await self._uow.sets.add(
+            trump_suit, trump_value = self._pick_trump(round_name, used_cards)
+            round_obj = await self._uow.rounds.add(
                 trump_suit=trump_suit,
                 trump_value=trump_value,
-                round_name=set_name,
+                round_name=round_name,
                 round_number=index + 1,
                 is_current_round=is_current_round,
                 dealer_id=dealer.id,
@@ -131,7 +131,7 @@ class GameService:
             is_current_round = False
             for user in users_with_cards:
                 dealing = await self._uow.dealings.add(
-                    user_id=user.id, set_id=set_obj.id
+                    user_id=user.id, round_id=round_obj.id
                 )
                 for card in user.cards:
                     await self._uow.cards.add(
@@ -143,11 +143,11 @@ class GameService:
             opening_player = next(circular_players_generator)
 
     @staticmethod
-    def _generate_cards_for_set(
-        set_name: str, players: list[LobbyUserInfoDTO]
+    def _generate_cards_for_round(
+        round_name: str, players: list[LobbyUserInfoDTO]
     ) -> tuple[list[UserCardListDTO], set[CardDTO]]:
         max_cards_per_player = (
-            int(set_name) if set_name.isnumeric() else 36 // len(players)
+            int(round_name) if round_name.isnumeric() else 36 // len(players)
         )
         users_with_cards: list[UserCardListDTO] = []
         used_cards: set[CardDTO] = set()
@@ -165,16 +165,16 @@ class GameService:
         return users_with_cards, used_cards
 
     @staticmethod
-    def _generate_sets(players_number: int) -> Sequence[str]:
+    def _generate_rounds(players_number: int) -> Sequence[str]:
         max_card_per_player = 36 // players_number
-        sets = ["1"] * players_number
-        sets += [str(_) for _ in range(2, max_card_per_player)]
-        sets += [str(max_card_per_player)] * players_number
-        sets += [str(_) for _ in range(max_card_per_player - 1, 2 - 1, -1)]
-        sets += ["1"] * players_number
-        sets += ["BR"] * players_number  # Blind Round
-        sets += ["NTR"] * players_number  # No Trumps Round
-        return sets
+        rounds = ["1"] * players_number
+        rounds += [str(_) for _ in range(2, max_card_per_player)]
+        rounds += [str(max_card_per_player)] * players_number
+        rounds += [str(_) for _ in range(max_card_per_player - 1, 2 - 1, -1)]
+        rounds += ["1"] * players_number
+        rounds += ["BR"] * players_number  # Blind Round
+        rounds += ["NTR"] * players_number  # No Trumps Round
+        return rounds
 
     @staticmethod
     def _get_circular_iterations(
@@ -194,7 +194,7 @@ class GameService:
 
     @staticmethod
     def _pick_trump(
-        set_name: str, used_cards: set[CardDTO]
+        round_name: str, used_cards: set[CardDTO]
     ) -> tuple[Literal["H", "D", "C", "S"] | None, int | None]:
         unused_cards = CARDS - used_cards
         if not unused_cards:
@@ -202,7 +202,7 @@ class GameService:
         trump_card: CardDTO = random.choice(list(unused_cards))
         trump_suit = trump_card.suit
         trump_value = trump_card.value
-        if set_name == "NTR" or (trump_suit == "S" and trump_value == 7):
+        if round_name == "NTR" or (trump_suit == "S" and trump_value == 7):
             trump_suit = None
             trump_value = None
         return trump_suit, trump_value

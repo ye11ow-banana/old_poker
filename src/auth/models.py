@@ -43,6 +43,7 @@ class User(Base):
 
     id: Mapped[uuidpk]
     username: Mapped[str] = mapped_column(unique=True, nullable=False)
+    email: Mapped[str] = mapped_column(unique=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(
         String(length=1024), nullable=False
     )

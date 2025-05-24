@@ -46,8 +46,7 @@ class CardDTO(BaseModel):
     suit: Literal["H", "D", "C", "S"]
     value: int
 
-    class Config:
-        frozen = True
+    model_config = ConfigDict(frozen=True)
 
 
 class UserCardListDTO(UserInfoDTO):
@@ -69,7 +68,7 @@ class FullUserCardInfoDTO(UserInfoDTO):
 class FlattenFullGameCardInfoDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    set_id: UUID
+    round_id: UUID
     user_id: UUID
     username: str
     card_id: UUID
@@ -89,7 +88,7 @@ class FullEntryCardInfoDTO(BaseModel):
 class FullGameCardInfoDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    set_id: UUID
+    round_id: UUID
     users: list[FullUserCardInfoDTO]
     entry: FullEntryCardInfoDTO | None = None
     trump_suit: Literal["H", "D", "C", "S"] | None = None
@@ -99,7 +98,7 @@ class FullGameCardInfoDTO(BaseModel):
 class ProcessCardDTO(BaseModel):
     card_id: UUID
     owner_id: UUID
-    set_id: UUID
+    round_id: UUID
     is_round_end: bool = False
 
 
@@ -107,3 +106,24 @@ class EntryIdDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+
+
+class InvitePayload(BaseModel):
+    inviter_id: str
+    invitee_id: str
+    lobby_id: str
+
+
+class ReadyPayload(BaseModel):
+    user_id: str
+    lobby_id: str
+
+
+class StartPayload(BaseModel):
+    game_id: str
+    lobby_id: str
+
+
+class LobbyEventDTO(BaseModel):
+    event: Literal["invite", "ready", "start"]
+    data: dict

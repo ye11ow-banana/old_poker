@@ -19,6 +19,7 @@ RUN python3 -m venv $POETRY_VENV \
 WORKDIR /usr/src/app
 COPY . /usr/src/app
 
+# RUN poetry lock --no-update
 RUN poetry install
 
 EXPOSE 80

@@ -25,9 +25,10 @@ class _WSAuthenticatedUser:
         websocket: WebSocket,
         uow: UOWDep,
     ) -> UserInfoDTO:
-        try:
-            token = websocket.query_params["token"]
-        except KeyError:
+        auth_header = websocket.headers.get("authorization")
+        if auth_header and auth_header.startswith("Bearer "):
+            token = auth_header.split(" ", 1)[1]
+        else:
             raise ws_exception
         try:
             user = await JWTAuthenticationService(uow).get_current_user(token)

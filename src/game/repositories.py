@@ -67,30 +67,30 @@ class GameRepository(SQLAlchemyRepository):
     async def get_full_game_info(self, game_id: UUID) -> list[FlattenFullGameCardInfoDTO]:
         query = (
             select(
-                models.Set.id,
+                models.Round.id,
                 auth_models.User.id,
                 auth_models.User.username,
                 models.Card.id,
                 models.Card.suit,
                 models.Card.value,
                 models.Card.entry_id,
-                models.Set.trump_suit,
-                models.Set.trump_value,
-                models.Set.opening_player_id,
+                models.Round.trump_suit,
+                models.Round.trump_value,
+                models.Round.opening_player_id,
             )
             .join(
                 models.Dealing, models.Dealing.user_id == auth_models.User.id
             )
-            .join(models.Set, models.Dealing.set_id == models.Set.id)
+            .join(models.Round, models.Dealing.round_id == models.Round.id)
             .join(models.Card, models.Card.dealing_id == models.Dealing.id)
             .filter(
-                models.Set.game_id == game_id,
-                models.Set.is_current_round == True,
+                models.Round.game_id == game_id,
+                models.Round.is_current_round == True,
             )
         )
         res = await self._session.execute(query)
         return [FlattenFullGameCardInfoDTO(
-            set_id=player[0],
+            round_id=player[0],
             user_id=player[1],
             username=player[2],
             card_id=player[3],
@@ -107,10 +107,10 @@ class GamePlayerRepository(SQLAlchemyRepository):
     model = models.GamePlayer
 
 
-class SetRepository(SQLAlchemyRepository):
-    model = models.Set
+class RoundRepository(SQLAlchemyRepository):
+    model = models.Round
 
-    async def make_new_current(self, /, game_id: UUID, set_id: UUID) -> None:
+    async def make_new_current(self, /, game_id: UUID, round_id: UUID) -> None:
         query = (
             select(self.model.id)
             .filter_by(game_id=game_id, is_current_round=False)
@@ -122,7 +122,7 @@ class SetRepository(SQLAlchemyRepository):
             is_current_round=True,
         )
         await self.update(
-            {"id": set_id},
+            {"id": round_id},
             is_current_round=False,
         )
 
@@ -138,8 +138,8 @@ class CardRepository(SQLAlchemyRepository):
 class EntryRepository(SQLAlchemyRepository):
     model = models.Entry
 
-    async def get_or_create(self, set_id: UUID, owner_id: UUID) -> EntryIdDTO:
-        obj = await self.get_last(set_id=set_id)
+    async def get_or_create(self, round_id: UUID, owner_id: UUID) -> EntryIdDTO:
+        obj = await self.get_last(round_id=round_id)
         if obj is None:
-            obj = await self.add(set_id=set_id, owner_id=owner_id)
+            obj = await self.add(round_id=round_id, owner_id=owner_id)
         return EntryIdDTO.model_validate(obj)

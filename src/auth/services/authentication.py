@@ -61,7 +61,7 @@ class JWTAuthenticationService(IAuthenticationService):
         try:
             async with self._uof:
                 db_user = await self._get_db_user_by_jwt(
-                    token, returns=("id", "username")
+                    token, returns=("id", "username", "email")
                 )
         except JWTError:
             raise AuthenticationException("Could not validate credentials")

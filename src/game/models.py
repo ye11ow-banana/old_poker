@@ -2,9 +2,8 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, UUID, UniqueConstraint
-from sqlalchemy.orm import relationship, Mapped, mapped_column
-from sqlalchemy.util.preloaded import orm
+from sqlalchemy import ForeignKey, UUID, UniqueConstraint, event
+from sqlalchemy.orm import relationship, Mapped, mapped_column, validates
 
 from auth.models import User
 from database import Base
@@ -55,7 +54,7 @@ class Game(Base):
     players_number: Mapped[int]
     is_finished: Mapped[bool] = mapped_column(default=False, nullable=False)
     created_at: Mapped[created_at]
-    finished_at: Mapped[datetime | None]
+    finished_at: Mapped[datetime | None] = mapped_column(nullable=True)
 
     players: Mapped[list["User"]] = relationship(
         secondary="game_players", back_populates="games"
@@ -64,7 +63,7 @@ class Game(Base):
         "User", secondary="game_winners", back_populates="games_won"
     )
 
-    @orm.validates("players_number")
+    @validates("players_number")
     def validate_players_number(self, _, value: int) -> int:
         if not 2 <= value <= 36:
             raise ValueError(
@@ -72,8 +71,8 @@ class Game(Base):
             )
         return value
 
-    @orm.validates("date_finished")
-    def validate_date_finished(self, _, value: int) -> int:
+    @validates("finished_at")
+    def validate_finished_at(self, _, value: int) -> int:
         if self.is_finished and not value:
             raise ValueError("Date finished should be set for finished game")
         if self.finished_at < self.created_at:
@@ -82,16 +81,7 @@ class Game(Base):
             )
         return value
 
-    @orm.validates("players")
-    def validate_players(self, _, value: User) -> User:
-        real_players_number = len(self.players)
-        if real_players_number != self.players_number:
-            raise ValueError(
-                f"Players number should be equal to players number, got {real_players_number}"
-            )
-        return value
-
-    @orm.validates("winners")
+    @validates("winners")
     def validate_winners(self, _, value: User) -> User:
         if not self.is_finished:
             raise ValueError(f"Game should be finished to set winners")
@@ -123,7 +113,6 @@ class Lobby(Base):
     leader_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
-        primary_key=True,
     )
     players: Mapped[list["User"]] = relationship(
         "User", secondary="lobby_players", back_populates="lobbies"
@@ -137,14 +126,14 @@ class Suit(enum.Enum):
     S = "S"
 
 
-class Set(Base):
-    __tablename__ = "sets"
+class Round(Base):
+    __tablename__ = "rounds"
 
     id: Mapped[uuidpk]
     trump_suit: Mapped[Suit] = mapped_column(nullable=True)
     trump_value: Mapped[int] = mapped_column(nullable=True)
     round_name: Mapped[str] = mapped_column(nullable=False)
-    round_number: Mapped[int] = mapped_column(nullable=True)
+    round_number: Mapped[int | None] = mapped_column(nullable=True)
     is_current_round: Mapped[bool] = mapped_column(
         default=False, nullable=False
     )
@@ -161,7 +150,7 @@ class Set(Base):
         ForeignKey("games.id", ondelete="CASCADE"),
     )
 
-    @orm.validates("trump_value")
+    @validates("trump_value")
     def validate_trump_value(self, _, value: int | None) -> int | None:
         if value is None:
             return value
@@ -178,13 +167,13 @@ class Dealing(Base):
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
     )
-    set_id: Mapped[uuid.UUID] = mapped_column(
+    round_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("sets.id", ondelete="CASCADE"),
+        ForeignKey("rounds.id", ondelete="CASCADE"),
     )
 
     __table_args__ = (
-        UniqueConstraint("user_id", "set_id", name="_user_set_uc"),
+        UniqueConstraint("user_id", "round_id", name="_user_round_uc"),
     )
 
 
@@ -196,9 +185,9 @@ class Entry(Base):
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="CASCADE"),
     )
-    set_id: Mapped[uuid.UUID] = mapped_column(
+    round_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("sets.id", ondelete="CASCADE"),
+        ForeignKey("rounds.id", ondelete="CASCADE"),
     )
     is_finished: Mapped[bool] = mapped_column(default=False, nullable=False)
     finished_at: Mapped[datetime | None]
@@ -220,8 +209,19 @@ class Card(Base):
         nullable=True,
     )
 
-    @orm.validates("value")
+    @validates("value")
     def validate_value(self, _, value: int) -> int:
         if not 6 <= value <= 14:
             raise ValueError(f"Value should be between 6 and 14, got {value}")
         return value
+
+
+@event.listens_for(Game, "before_insert")
+@event.listens_for(Game, "before_update")
+def validate_players_count(mapper, connection, target: Game):
+    actual = len(target.players or [])
+    expected = target.players_number
+    if actual != expected:
+        raise ValueError(
+            f"Players number mismatch: expected {expected}, got {actual}"
+        )

@@ -1,7 +1,7 @@
 import re
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict
+from pydantic import BaseModel, Field, field_validator, ConfigDict, EmailStr
 from pydantic_core.core_schema import ValidationInfo
 
 
@@ -20,6 +20,7 @@ class UserInfoDTO(BaseModel):
 
     id: UUID
     username: str
+    email: str
 
 
 class UserInDBDTO(BaseModel):
@@ -27,6 +28,7 @@ class UserInDBDTO(BaseModel):
 
     id: UUID | None = None
     username: str | None = None
+    email: str | None = None
     hashed_password: str | None = None
 
     def to_user_info(self) -> UserInfoDTO:
@@ -35,6 +37,7 @@ class UserInDBDTO(BaseModel):
 
 class UserInCreateDTO(BaseModel):
     username: str = Field(min_length=3, max_length=30)
+    email: EmailStr
     password: str = Field(min_length=6)
     repeat_password: str
 

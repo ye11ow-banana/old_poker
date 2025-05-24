@@ -16,18 +16,18 @@ class RegistrationService:
         try:
             async with self._uof:
                 new_user = await self._create_user(
-                    user.username, hashed_password
+                    user.username, user.email, hashed_password
                 )
                 await self._uof.commit()
         except IntegrityError:
             raise RegistrationException(
-                "User with this username already exists"
+                "User with this username or email already exists"
             )
         return new_user
 
-    async def _create_user(self, username: str, password: str) -> UserInfoDTO:
+    async def _create_user(self, username: str, email: str, password: str) -> UserInfoDTO:
         return await self._uof.users.add(
-            username=username, hashed_password=password
+            username=username, email=email, hashed_password=password
         )
 
     async def _hash_password(self, plain_password: str) -> str:
