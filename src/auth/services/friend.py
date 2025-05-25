@@ -33,6 +33,7 @@ class M2MFriendService(IFriendService):
                 returns=(
                     "id",
                     "username",
+                    "email",
                 ),
             )
 
