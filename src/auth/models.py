@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import enum
-from typing import TYPE_CHECKING
 import uuid
+from typing import TYPE_CHECKING
 
-from sqlalchemy import UUID, String, ForeignKey
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy import UUID, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from database import Base
-from database import uuidpk, created_at
+from database import Base, created_at, uuidpk
 
 if TYPE_CHECKING:
     from game.models import Game, Lobby

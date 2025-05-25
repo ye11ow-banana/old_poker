@@ -25,7 +25,9 @@ class RegistrationService:
             )
         return new_user
 
-    async def _create_user(self, username: str, email: str, password: str) -> UserInfoDTO:
+    async def _create_user(
+        self, username: str, email: str, password: str
+    ) -> UserInfoDTO:
         return await self._uof.users.add(
             username=username, email=email, hashed_password=password
         )

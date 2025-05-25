@@ -1,9 +1,8 @@
 from fastapi import APIRouter
 
-from auth.dependencies import AuthenticatedUserDep
 from auth.schemas import UserInfoDTO
-from dependencies import UOWDep, PaginationDep
-from schemas import ResponseDTO, PaginationDTO
+from dependencies import PaginationDep, UOWDep, AuthenticatedUserDep
+from schemas import PaginationDTO, ResponseDTO
 from search.dependencies import UserSearchParamsDep
 from search.services import UserSearchService
 

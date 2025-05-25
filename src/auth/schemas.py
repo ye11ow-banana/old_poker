@@ -1,7 +1,7 @@
 import re
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 from pydantic_core.core_schema import ValidationInfo
 
 

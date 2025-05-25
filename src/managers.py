@@ -1,20 +1,30 @@
 import asyncio
+
 from fastapi.encoders import jsonable_encoder
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 
-from game.schemas import LobbyEventDTO
+from notification.schemas import LobbyEventDTO, FriendEventDTO
+from schemas import ErrorEventDTO
 
 
 class WSConnectionManager:
     def __init__(self) -> None:
-        # maps user_id -> WebSocket
         self._connections: dict[str, WebSocket] = {}
         # maps lobby_id -> set of user_ids
         self._lobby_members: dict[str, set[str]] = {}
         # lock to protect shared structures
         self._lock = asyncio.Lock()
 
-    async def connect(self, websocket: WebSocket, user_id: str, lobby_id: str) -> None:
+    async def connect_to_notification(
+        self, user_id: str, websocket: WebSocket
+    ) -> None:
+        await websocket.accept()
+        async with self._lock:
+            self._connections[user_id] = websocket
+
+    async def connect_to_lobby(
+        self, websocket: WebSocket, user_id: str, lobby_id: str
+    ) -> None:
         """
         Accept a WebSocket connection and register the user to the lobby room.
         """
@@ -23,15 +33,9 @@ class WSConnectionManager:
             self._connections[user_id] = websocket
             self._lobby_members.setdefault(lobby_id, set()).add(user_id)
 
-    async def connect_notification_socket(self, user_id: str, websocket: WebSocket) -> None:
-        """
-        Register a WebSocket for global notifications (no lobby).
-        """
-        await websocket.accept()
-        async with self._lock:
-            self._connections[user_id] = websocket
-
-    async def disconnect(self, user_id: str, lobby_id: str | None = None) -> None:
+    async def disconnect(
+        self, user_id: str, lobby_id: str | None = None
+    ) -> None:
         """
         Remove a user from global connections and optionally from a lobby.
         """
@@ -45,7 +49,9 @@ class WSConnectionManager:
                     if not self._lobby_members[lobby_id]:
                         self._lobby_members.pop(lobby_id)
 
-    async def broadcast_to_lobby(self, lobby_id: str, data: LobbyEventDTO) -> None:
+    async def broadcast_to_lobby(
+        self, lobby_id: str, data: LobbyEventDTO
+    ) -> None:
         """
         Send a message to all users connected in a given lobby.
         """
@@ -62,15 +68,18 @@ class WSConnectionManager:
                 failed_user = list(self._lobby_members.get(lobby_id, []))[i]
                 await self.disconnect(failed_user, lobby_id)
 
-    async def send_to_user(self, user_id: str, data: LobbyEventDTO) -> None:
-        """
-        Send a message directly to a single user if they are connected.
-        """
+    async def send_to_user(
+        self,
+        user_id: str,
+        data: LobbyEventDTO | FriendEventDTO | ErrorEventDTO,
+    ) -> None:
         async with self._lock:
             ws = self._connections.get(user_id)
         if ws:
             try:
-                await ws.send_json(jsonable_encoder(data.model_dump(by_alias=True)))
+                await ws.send_json(
+                    jsonable_encoder(data.model_dump(by_alias=True))
+                )
             except (WebSocketDisconnect, RuntimeError):
                 await self.disconnect(user_id)
 

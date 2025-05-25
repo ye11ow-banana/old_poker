@@ -11,13 +11,14 @@ class LobbyService:
     def __init__(self, uow: IUnitOfWork) -> None:
         self._uow: IUnitOfWork = uow
 
-    async def get_or_create_lobby(self, user: UserInfoDTO) -> LobbyIdDTO:
+    async def create_lobby(self, user: UserInfoDTO) -> LobbyIdDTO:
         async with self._uow:
-            lobby = await self._uow.lobbies.get_last_or_create(
-                returns=("id",), leader_id=user.id
+            lobby = await self._uow.lobbies.add(leader_id=user.id)
+            await self._uow.lobby_players.add(
+                lobby_id=lobby.id, user_id=user.id
             )
             await self._uow.commit()
-        return lobby
+        return LobbyIdDTO.model_validate(lobby)
 
     async def remove_user_from_lobby(
         self, user: UserInfoDTO, lobby_id: UUID

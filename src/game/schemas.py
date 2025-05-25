@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 from auth.schemas import UserInfoDTO
 
@@ -106,24 +106,3 @@ class EntryIdDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
-
-
-class InvitePayload(BaseModel):
-    inviter_id: str
-    invitee_id: str
-    lobby_id: str
-
-
-class ReadyPayload(BaseModel):
-    user_id: str
-    lobby_id: str
-
-
-class StartPayload(BaseModel):
-    game_id: str
-    lobby_id: str
-
-
-class LobbyEventDTO(BaseModel):
-    event: Literal["invite", "ready", "start"]
-    data: dict

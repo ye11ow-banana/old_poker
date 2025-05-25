@@ -2,12 +2,11 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import ForeignKey, UUID, UniqueConstraint, event
-from sqlalchemy.orm import relationship, Mapped, mapped_column, validates
+from sqlalchemy import UUID, ForeignKey, UniqueConstraint, event
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from auth.models import User
-from database import Base
-from database import uuidpk, created_at
+from database import Base, created_at, uuidpk
 
 
 class GamePlayer(Base):

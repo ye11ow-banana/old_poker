@@ -1,4 +1,4 @@
-from typing import Generic, TypeVar
+from typing import Generic, Literal, TypeVar
 
 from pydantic import BaseModel
 
@@ -26,3 +26,8 @@ class PaginationDTO(BaseModel, Generic[S]):
     page_count: int
     total_count: int
     data: list[S]
+
+
+class ErrorEventDTO(BaseModel):
+    event: Literal["error"]
+    data: dict[str, str]

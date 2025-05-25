@@ -1,20 +1,13 @@
-from uuid import UUID
 from typing import Dict, Set
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
 
 from auth.schemas import UserInfoDTO
-from game.dependencies import WSAuthenticatedUserDep, UOWDep, \
-    _WSAuthenticatedUser
-from game.services.lobby import LobbyService
+from dependencies import AuthenticatedUserDep, UOWDep, WSAuthenticatedUserDep
+from game.schemas import LobbyIdDTO
 from game.services.game import GameService
-from game.schemas import (
-    LobbyUserInfoDTO,
-    InvitePayload,
-    ReadyPayload,
-    StartPayload,
-    LobbyEventDTO,
-)
+from game.services.lobby import LobbyService
 from managers import ws_manager
 from unitofwork import IUnitOfWork
 
@@ -23,18 +16,12 @@ router = APIRouter(prefix="/games", tags=["Game"])
 _lobby_ready: Dict[str, Set[str]] = {}
 
 
-@router.websocket("/ws/notifications")
-async def notifications_ws(
-    websocket: WebSocket,
-    user: WSAuthenticatedUserDep,
-):
-    user_id = str(user.id)
-    await ws_manager.connect_notification_socket(user_id, websocket)
-    try:
-        while True:
-            await websocket.receive_text()
-    except WebSocketDisconnect:
-        await ws_manager.disconnect(user_id)
+@router.post("/lobbies")
+async def create_lobby(
+    user: AuthenticatedUserDep,
+    uow: UOWDep,
+) -> LobbyIdDTO:
+    return await LobbyService(uow).create_lobby(user)
 
 
 @router.websocket("/ws/lobby/{lobby_id}")
@@ -58,7 +45,7 @@ async def lobby_ws_endpoint(
                 invite = InvitePayload(**payload)
                 await LobbyService(uow).add_user_to_lobby(
                     UserInfoDTO(id=UUID(invite.invitee_id), username=""),
-                    invite.lobby_id
+                    invite.lobby_id,
                 )
                 event_dto = LobbyEventDTO(event="invite", data=invite.dict())
                 # Notify via notifications channel
@@ -72,11 +59,17 @@ async def lobby_ws_endpoint(
                 members = await ws_manager.get_lobby_user_ids(lobby_id)
                 if _lobby_ready[lobby_id] >= set(members):
                     players_info = [
-                        LobbyUserInfoDTO(id=UUID(uid), username="", is_leader=False)
+                        LobbyUserInfoDTO(
+                            id=UUID(uid), username="", is_leader=False
+                        )
                         for uid in members
                     ]
-                    game_info = await GameService(uow).create_game(players_info, True)
-                    start = StartPayload(game_id=str(game_info.id), lobby_id=lobby_id)
+                    game_info = await GameService(uow).create_game(
+                        players_info, True
+                    )
+                    start = StartPayload(
+                        game_id=str(game_info.id), lobby_id=lobby_id
+                    )
                     event_dto = LobbyEventDTO(event="start", data=start.dict())
                     await ws_manager.broadcast_to_lobby(lobby_id, event_dto)
                     _lobby_ready[lobby_id].clear()

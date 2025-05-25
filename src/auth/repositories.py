@@ -1,9 +1,11 @@
-from typing import Sequence, Literal
+from typing import Literal, Sequence
 from uuid import UUID
 
-from sqlalchemy import select, or_
+from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 
-from auth import models, Friendship
+from auth import Friendship, models
+from auth.models import FriendshipStatus
 from auth.schemas import UserInDBDTO, UserInfoDTO
 from repository import SQLAlchemyRepository
 from utils import Pagination
@@ -93,3 +95,15 @@ class UserRepository(SQLAlchemyRepository):
 
 class FriendshipRepository(SQLAlchemyRepository):
     model = models.Friendship
+
+    async def accept_friend_request(self, /, user_id: str, friend_id: str) -> None:
+        try:
+            await self.add(
+                left_user_id=user_id,
+                right_user_id=friend_id,
+                status=FriendshipStatus.ACCEPTED,
+            )
+        except IntegrityError:
+            raise ValueError(
+                f"Friendship between {user_id} and {friend_id} already exists."
+            )

@@ -1,9 +1,7 @@
 from abc import ABC, abstractmethod
 
-from sqlalchemy.exc import IntegrityError
-
 from auth.schemas import UserInfoDTO
-from notification.schemas import FriendNotificationDTO
+from notification.schemas import FriendResponsePayload
 from unitofwork import IUnitOfWork
 
 
@@ -46,34 +44,15 @@ class M2MFriendService(IFriendService):
         )
 
     async def process_friend_request(
-        self, user: UserInfoDTO, data: FriendNotificationDTO
+        self, data: FriendResponsePayload
     ) -> None:
-        if data.type == "friend_request":
-            try:
-                async with self._uow:
-                    await self._uow.friendship.add(
-                        left_user_id=user.id,
-                        right_user_id=data.data.id,
-                        status="REQUESTED",
+        async with self._uow:
+            if data.response == "ACCEPTED":
+                try:
+                    await self._uow.friendship.accept_friend_request(
+                        user_id=data.inviter_id, friend_id=data.invitee_id
                     )
-                    await self._uow.commit()
-            except IntegrityError:
-                # Friendship already exists
-                pass
-        elif data.type == "friend_request_response":
-            what_to_update = {
-                "left_user_id": data.data.id,
-                "right_user_id": user.id,
-            }
-            if data.data.status == "accept":
-                async with self._uow:
-                    await self._uow.friendship.update(
-                        what_to_update, status="ACCEPTED"
-                    )
-                    await self._uow.commit()
-            elif data.data.status == "decline":
-                async with self._uow:
-                    await self._uow.friendship.update(
-                        what_to_update, status="DECLINED"
-                    )
+                except ValueError:
+                    await self._uow.rollback()
+                else:
                     await self._uow.commit()

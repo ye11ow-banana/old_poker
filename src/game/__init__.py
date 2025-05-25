@@ -1,1 +1,1 @@
-from .models import GamePlayer, GameWinner, GameType, Game
+from .models import Game, GamePlayer, GameType, GameWinner

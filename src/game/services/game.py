@@ -1,17 +1,13 @@
 import random
-from typing import Sequence, Generator, Literal
+from typing import Generator, Literal, Sequence
 from uuid import UUID
 
 from auth.schemas import UserInfoDTO
 from game.models import Suit
-from game.schemas import (
-    LobbyUserInfoDTO,
-    GameInfoDTO,
-    CardDTO,
-    UserCardListDTO,
-    FullGameCardInfoDTO, FullUserCardInfoDTO, FullCardInfoDTO,
-    FullEntryCardInfoDTO, ProcessCardDTO
-)
+from game.schemas import (CardDTO, FullCardInfoDTO, FullEntryCardInfoDTO,
+                          FullGameCardInfoDTO, FullUserCardInfoDTO,
+                          GameInfoDTO, LobbyUserInfoDTO, ProcessCardDTO,
+                          UserCardListDTO)
 from unitofwork import IUnitOfWork
 
 CARDS = {
@@ -63,7 +59,8 @@ class GameService:
                     id=info.user_id,
                     username=info.username,
                     cards=[
-                        card for card in user_cards
+                        card
+                        for card in user_cards
                         if card.user_id == info.user_id
                     ],
                 )
@@ -73,7 +70,9 @@ class GameService:
             entry=FullEntryCardInfoDTO(
                 id=entry_cards[0].entry_id,
                 cards=entry_cards,
-            ) if entry_cards else None,
+            )
+            if entry_cards
+            else None,
             trump_suit=flatten_info_list[0].trump_suit,
             trump_value=flatten_info_list[0].trump_value,
         )
@@ -113,7 +112,9 @@ class GameService:
         dealer = next(circular_players_generator)
         opening_player = next(circular_players_generator)
         is_current_round = True
-        for index, round_name in enumerate(self._generate_rounds(len(players))):
+        for index, round_name in enumerate(
+            self._generate_rounds(len(players))
+        ):
             users_with_cards, used_cards = self._generate_cards_for_round(
                 round_name, players
             )

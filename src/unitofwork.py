@@ -1,17 +1,11 @@
 from abc import ABC, abstractmethod
 
-from auth.repositories import UserRepository, FriendshipRepository
+from auth.repositories import FriendshipRepository, UserRepository
 from database import async_session_maker
-from game.repositories import (
-    LobbyRepository,
-    LobbyPlayerRepository,
-    GameRepository,
-    GamePlayerRepository,
-    RoundRepository,
-    DealingRepository,
-    CardRepository,
-    EntryRepository,
-)
+from game.repositories import (CardRepository, DealingRepository,
+                               EntryRepository, GamePlayerRepository,
+                               GameRepository, LobbyPlayerRepository,
+                               LobbyRepository, RoundRepository)
 
 
 class IUnitOfWork(ABC):

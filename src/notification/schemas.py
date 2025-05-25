@@ -1,25 +1,28 @@
 from typing import Literal
-from uuid import UUID
 
 from pydantic import BaseModel
 
-from auth.schemas import UserInfoDTO, UserIdDTO
+
+class FriendRequestPayload(BaseModel):
+    inviter_id: str
+    invitee_id: str
 
 
-class GameInviteDTO(BaseModel):
-    lobby_id: UUID
-    user: UserInfoDTO
+class FriendResponsePayload(FriendRequestPayload):
+    response: Literal["ACCEPTED"]
 
 
-class NotificationDTO(BaseModel):
-    type: Literal["friend_request", "game_invite"]
-    data: list[UserInfoDTO] | UserInfoDTO | GameInviteDTO
+class FriendEventDTO(BaseModel):
+    event: Literal["friend_request", "friend_response"]
+    data: FriendRequestPayload | FriendResponsePayload
 
 
-class UserIdFriendshipAnswerDTO(UserIdDTO):
-    status: Literal["accept", "decline"]
+class LobbyInvitePayload(BaseModel):
+    inviter_id: str
+    invitee_id: str
+    lobby_id: str
 
 
-class FriendNotificationDTO(BaseModel):
-    type: Literal["friend_request", "friend_request_response"]
-    data: UserIdFriendshipAnswerDTO | UserIdDTO
+class LobbyEventDTO(BaseModel):
+    event: Literal["lobby_invite"]
+    data: LobbyInvitePayload

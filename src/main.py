@@ -1,17 +1,14 @@
 from fastapi import FastAPI, Request, status
 from fastapi.encoders import jsonable_encoder
-from fastapi.exceptions import RequestValidationError, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.exceptions import HTTPException, RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from auth.router import router as router_auth
 from game.router import router as router_game
-from search.router import router as router_search
-from schemas import (
-    ErrorResponseDTO,
-    PydanticErrorResponseDTO,
-    MessageErrorResponseDTO,
-)
+from notification.router import ws_router as ws_router_notification
+from schemas import (ErrorResponseDTO, MessageErrorResponseDTO,
+                     PydanticErrorResponseDTO)
 from utils import PydanticConvertor
 
 app = FastAPI(
@@ -54,4 +51,4 @@ async def validation_exception_handler(_: Request, exc: HTTPException):
 
 app.include_router(router_auth)
 app.include_router(router_game)
-app.include_router(router_search)
+app.include_router(ws_router_notification)

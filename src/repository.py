@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Sequence, Type
 from uuid import UUID
 
-from sqlalchemy import select, func, Row, update, delete
+from sqlalchemy import Row, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import Base
@@ -128,14 +128,15 @@ class SQLAlchemyRepository(IRepository):
         return res.fetchall()
 
     async def count(self, /, **data: str | int | UUID) -> int:
-        query = select(func.count()).filter_by(
-            **data
-        )
+        query = select(func.count()).filter_by(**data)
         res = await self._session.execute(query)
         return res.scalar()
 
     async def update(
-        self, /, what_to_update: dict[str, str | int | UUID], **data: str | int | UUID
+        self,
+        /,
+        what_to_update: dict[str, str | int | UUID],
+        **data: str | int | UUID,
     ) -> None:
         stmt = update(self.model).filter_by(**what_to_update).values(**data)
         await self._session.execute(stmt)

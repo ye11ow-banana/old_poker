@@ -1,10 +1,10 @@
-from datetime import datetime
-from typing import AsyncGenerator, Annotated
 import uuid
+from datetime import datetime
+from typing import Annotated, AsyncGenerator
 
-from sqlalchemy import MetaData, NullPool, text, UUID
+from sqlalchemy import UUID, MetaData, NullPool, text
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
-from sqlalchemy.orm import sessionmaker, DeclarativeBase, mapped_column
+from sqlalchemy.orm import DeclarativeBase, mapped_column, sessionmaker
 
 from config import DB_HOST, DB_NAME, DB_PASS, DB_PORT, DB_USER
 
