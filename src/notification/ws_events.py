@@ -3,9 +3,9 @@ from pydantic import ValidationError
 from auth.services.friend import M2MFriendService
 from managers import WSConnectionManager
 from notification.schemas import (
-    FriendRequestPayload,
-    FriendResponsePayload,
-    FriendEventDTO, LobbyInvitePayload, LobbyEventDTO,
+    FriendRequestPayloadDTO,
+    FriendResponsePayloadDTO,
+    FriendEventDTO, LobbyInvitePayloadDTO, LobbyEventDTO,
 )
 from schemas import ErrorEventDTO
 from unitofwork import IUnitOfWork
@@ -15,7 +15,7 @@ async def lobby_invite(
     ws_manager: WSConnectionManager, user_id: str, payload: dict, *args, **kwargs
 ):
     try:
-        data = LobbyInvitePayload(**payload | {"inviter_id": user_id})
+        data = LobbyInvitePayloadDTO(**payload | {"inviter_id": user_id})
     except ValidationError:
         await ws_manager.send_to_user(
             user_id,
@@ -33,7 +33,7 @@ async def friend_request(
     ws_manager: WSConnectionManager, user_id: str, payload: dict, *args, **kwargs
 ) -> None:
     try:
-        data = FriendRequestPayload(**payload | {"inviter_id": user_id})
+        data = FriendRequestPayloadDTO(**payload | {"inviter_id": user_id})
     except ValidationError:
         await ws_manager.send_to_user(
             user_id,
@@ -52,7 +52,7 @@ async def friend_response(
     ws_manager: WSConnectionManager, user_id: str, payload: dict, uow: IUnitOfWork
 ):
     try:
-        data = FriendResponsePayload(**payload | {"invitee_id": user_id})
+        data = FriendResponsePayloadDTO(**payload | {"invitee_id": user_id})
     except ValidationError:
         await ws_manager.send_to_user(
             user_id,

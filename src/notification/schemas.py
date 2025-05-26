@@ -3,21 +3,21 @@ from typing import Literal
 from pydantic import BaseModel
 
 
-class FriendRequestPayload(BaseModel):
+class FriendRequestPayloadDTO(BaseModel):
     inviter_id: str
     invitee_id: str
 
 
-class FriendResponsePayload(FriendRequestPayload):
+class FriendResponsePayloadDTO(FriendRequestPayloadDTO):
     response: Literal["ACCEPTED"]
 
 
 class FriendEventDTO(BaseModel):
     event: Literal["friend_request", "friend_response"]
-    data: FriendRequestPayload | FriendResponsePayload
+    data: FriendRequestPayloadDTO | FriendResponsePayloadDTO
 
 
-class LobbyInvitePayload(BaseModel):
+class LobbyInvitePayloadDTO(BaseModel):
     inviter_id: str
     invitee_id: str
     lobby_id: str
@@ -25,4 +25,4 @@ class LobbyInvitePayload(BaseModel):
 
 class LobbyEventDTO(BaseModel):
     event: Literal["lobby_invite"]
-    data: LobbyInvitePayload
+    data: LobbyInvitePayloadDTO

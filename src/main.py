@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from auth.router import router as router_auth
-from game.router import router as router_game
+from game.router import router as router_game, ws_router as ws_router_game
 from notification.router import ws_router as ws_router_notification
 from search.router import router as router_search
 from schemas import (ErrorResponseDTO, MessageErrorResponseDTO,
@@ -52,5 +52,6 @@ async def validation_exception_handler(_: Request, exc: HTTPException):
 
 app.include_router(router_auth)
 app.include_router(router_game)
+app.include_router(ws_router_game)
 app.include_router(ws_router_notification)
 app.include_router(router_search)

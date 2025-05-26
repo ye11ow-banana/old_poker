@@ -1,19 +1,19 @@
-from typing import Dict, Set
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
-from auth.schemas import UserInfoDTO
+from auth.services.user import UserService
 from dependencies import AuthenticatedUserDep, UOWDep, WSAuthenticatedUserDep
-from game.schemas import LobbyIdDTO
+from game.schemas import LobbyIdDTO, GameStartEventDTO, \
+    GameIdPayloadDTO
 from game.services.game import GameService
 from game.services.lobby import LobbyService
 from managers import ws_manager
-from unitofwork import IUnitOfWork
+from schemas import ErrorEventDTO
+
 
 router = APIRouter(prefix="/games", tags=["Game"])
-
-_lobby_ready: Dict[str, Set[str]] = {}
+ws_router = APIRouter(prefix="/ws/games", tags=["WS Game"])
 
 
 @router.post("/lobbies")
@@ -24,56 +24,38 @@ async def create_lobby(
     return await LobbyService(uow).create_lobby(user)
 
 
-@router.websocket("/ws/lobby/{lobby_id}")
-async def lobby_ws_endpoint(
+@ws_router.websocket("/lobbies/{lobby_id}")
+async def lobby_ws(
     websocket: WebSocket,
-    lobby_id: str,
-    user: UserInfoDTO = Depends(WSAuthenticatedUserDep),
-    uow: IUnitOfWork = Depends(UOWDep),
+    lobby_id: UUID,
+    user: WSAuthenticatedUserDep,
+    uow: UOWDep,
 ):
     user_id = str(user.id)
-    # Register connection to lobby-specific channel
-    await ws_manager.connect(websocket, user_id, lobby_id)
-    _lobby_ready.setdefault(lobby_id, set())
+    await ws_manager.connect_to_lobby(websocket, user_id, lobby_id)
     try:
         while True:
             message = await websocket.receive_json()
             event = message.get("event")
-            payload = message.get("data", {})
-
-            if event == "invite":
-                invite = InvitePayload(**payload)
-                await LobbyService(uow).add_user_to_lobby(
-                    UserInfoDTO(id=UUID(invite.invitee_id), username=""),
-                    invite.lobby_id,
-                )
-                event_dto = LobbyEventDTO(event="invite", data=invite.dict())
-                # Notify via notifications channel
-                await ws_manager.send_to_user(invite.invitee_id, event_dto)
-
-            elif event == "ready":
-                ready = ReadyPayload(**payload)
-                _lobby_ready[lobby_id].add(ready.user_id)
-                event_dto = LobbyEventDTO(event="ready", data=ready.dict())
-                await ws_manager.broadcast_to_lobby(lobby_id, event_dto)
-                members = await ws_manager.get_lobby_user_ids(lobby_id)
-                if _lobby_ready[lobby_id] >= set(members):
-                    players_info = [
-                        LobbyUserInfoDTO(
-                            id=UUID(uid), username="", is_leader=False
-                        )
-                        for uid in members
-                    ]
+            if event == "ready":
+                await ws_manager.add_user_to_ready_list(user_id, lobby_id)
+                await ws_manager.broadcast_to_lobby_ready_users(lobby_id)
+                player_ids = await ws_manager.get_lobby_user_ids(lobby_id)
+                players = await UserService(uow).get_users_by_ids(player_ids)
+                if await ws_manager.is_lobby_ready(lobby_id):
                     game_info = await GameService(uow).create_game(
-                        players_info, True
+                        players
                     )
-                    start = StartPayload(
-                        game_id=str(game_info.id), lobby_id=lobby_id
-                    )
-                    event_dto = LobbyEventDTO(event="start", data=start.dict())
-                    await ws_manager.broadcast_to_lobby(lobby_id, event_dto)
-                    _lobby_ready[lobby_id].clear()
-
+                    await ws_manager.broadcast_to_lobby(lobby_id, GameStartEventDTO(
+                        event="game_start",
+                        data=GameIdPayloadDTO(id=game_info.id)
+                    ))
+            else:
+                await ws_manager.send_to_user(
+                    user_id,
+                    ErrorEventDTO(
+                        event="error", data={"message": "Invalid event type"}
+                    ),
+                )
     except WebSocketDisconnect:
         await ws_manager.disconnect(user_id, lobby_id)
-        _lobby_ready[lobby_id].discard(user_id)

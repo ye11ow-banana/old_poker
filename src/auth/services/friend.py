@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
 
 from auth.schemas import UserInfoDTO
-from notification.schemas import FriendResponsePayload
+from notification.schemas import FriendResponsePayloadDTO
 from unitofwork import IUnitOfWork
 
 
@@ -45,7 +45,7 @@ class M2MFriendService(IFriendService):
         )
 
     async def process_friend_request(
-        self, data: FriendResponsePayload
+        self, data: FriendResponsePayloadDTO
     ) -> None:
         async with self._uow:
             if data.response == "ACCEPTED":

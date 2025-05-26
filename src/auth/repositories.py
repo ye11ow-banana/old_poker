@@ -1,4 +1,4 @@
-from typing import Literal, Sequence
+from typing import Sequence
 from uuid import UUID
 
 from sqlalchemy import or_, select
@@ -91,6 +91,13 @@ class UserRepository(SQLAlchemyRepository):
         )
         res = await self._session.execute(query)
         return [UserInfoDTO.model_validate(friend) for friend in res.all()]
+
+    async def get_by_ids(self, ids: Sequence[str]) -> list[UserInfoDTO]:
+        query = select(self.model).where(self.model.id.in_(ids))
+        res = await self._session.execute(query)
+        return [
+            UserInfoDTO.model_validate(user) for user in res.scalars().all()
+        ]
 
 
 class FriendshipRepository(SQLAlchemyRepository):

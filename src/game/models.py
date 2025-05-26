@@ -213,14 +213,3 @@ class Card(Base):
         if not 6 <= value <= 14:
             raise ValueError(f"Value should be between 6 and 14, got {value}")
         return value
-
-
-@event.listens_for(Game, "before_insert")
-@event.listens_for(Game, "before_update")
-def validate_players_count(mapper, connection, target: Game):
-    actual = len(target.players or [])
-    expected = target.players_number
-    if actual != expected:
-        raise ValueError(
-            f"Players number mismatch: expected {expected}, got {actual}"
-        )

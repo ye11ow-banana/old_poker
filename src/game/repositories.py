@@ -4,9 +4,10 @@ from uuid import UUID
 from sqlalchemy import select
 
 from auth import models as auth_models
+from auth.schemas import UserInfoDTO
 from game import models
 from game.schemas import (EntryIdDTO, FlattenFullGameCardInfoDTO, LobbyIdDTO,
-                          LobbyInfoDTO, LobbyUserInfoDTO)
+                          LobbyInfoDTO)
 from repository import SQLAlchemyRepository
 
 
@@ -29,7 +30,7 @@ class LobbyRepository(SQLAlchemyRepository):
 
     async def get_players_in_lobby(
         self, /, lobby_id: UUID
-    ) -> list[LobbyUserInfoDTO]:
+    ) -> list[UserInfoDTO]:
         query = (
             select(models.User.id, models.User.username, self.model.leader_id)
             .join(
@@ -41,10 +42,10 @@ class LobbyRepository(SQLAlchemyRepository):
         )
         res = await self._session.execute(query)
         return [
-            LobbyUserInfoDTO(
+            UserInfoDTO(
                 id=player.id,
                 username=player.username,
-                is_leader=player.leader_id == player.id,
+                email=player.email,
             )
             for player in res.fetchall()
         ]

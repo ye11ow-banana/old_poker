@@ -3,7 +3,7 @@ from uuid import UUID
 from sqlalchemy.exc import IntegrityError
 
 from auth.schemas import UserInfoDTO
-from game.schemas import LobbyIdDTO, LobbyUserInfoDTO
+from game.schemas import LobbyIdDTO
 from unitofwork import IUnitOfWork
 
 
@@ -49,5 +49,5 @@ class LobbyService:
 
     async def get_players_in_lobby(
         self, lobby_id: UUID
-    ) -> list[LobbyUserInfoDTO]:
+    ) -> list[UserInfoDTO]:
         return await self._uow.lobbies.get_players_in_lobby(lobby_id=lobby_id)

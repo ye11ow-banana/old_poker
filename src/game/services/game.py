@@ -6,7 +6,7 @@ from auth.schemas import UserInfoDTO
 from game.models import Suit
 from game.schemas import (CardDTO, FullCardInfoDTO, FullEntryCardInfoDTO,
                           FullGameCardInfoDTO, FullUserCardInfoDTO,
-                          GameInfoDTO, LobbyUserInfoDTO, ProcessCardDTO,
+                          GameInfoDTO, ProcessCardDTO,
                           UserCardListDTO)
 from unitofwork import IUnitOfWork
 
@@ -78,10 +78,8 @@ class GameService:
         )
 
     async def create_game(
-        self, players: list[LobbyUserInfoDTO], create_game: bool
-    ) -> GameInfoDTO | None:
-        if not create_game:
-            return
+        self, players: list[UserInfoDTO]
+    ) -> GameInfoDTO:
         async with self._uow:
             game = await self._uow.games.add(
                 type="MULTIPLAYER",
@@ -96,17 +94,14 @@ class GameService:
             await self._uow.commit()
         return GameInfoDTO(
             id=game.id,
-            players=[
-                UserInfoDTO(id=player.id, username=player.username)
-                for player in players
-            ],
+            players=players,
             created_at=game.created_at,
         )
 
     async def create_rounds_with_cards(
         self,
         game_id: UUID,
-        players: list[LobbyUserInfoDTO],
+        players: list[UserInfoDTO],
     ) -> None:
         circular_players_generator = self._get_circular_iterations(players)
         dealer = next(circular_players_generator)
@@ -145,7 +140,7 @@ class GameService:
 
     @staticmethod
     def _generate_cards_for_round(
-        round_name: str, players: list[LobbyUserInfoDTO]
+        round_name: str, players: list[UserInfoDTO]
     ) -> tuple[list[UserCardListDTO], set[CardDTO]]:
         max_cards_per_player = (
             int(round_name) if round_name.isnumeric() else 36 // len(players)
@@ -160,7 +155,7 @@ class GameService:
                 used_cards.add(card)
             users_with_cards.append(
                 UserCardListDTO(
-                    id=player.id, username=player.username, cards=cards
+                    id=player.id, username=player.username, email=player.email, cards=cards
                 )
             )
         return users_with_cards, used_cards
@@ -179,8 +174,8 @@ class GameService:
 
     @staticmethod
     def _get_circular_iterations(
-        start_list: list[LobbyUserInfoDTO],
-    ) -> Generator[LobbyUserInfoDTO, None, None]:
+        start_list: list[UserInfoDTO],
+    ) -> Generator[UserInfoDTO, None, None]:
         """
         Iterates through start_list circularly, starting from a random element,
         and yields elements for each item in control_list.

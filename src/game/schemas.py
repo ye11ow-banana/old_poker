@@ -26,14 +26,6 @@ class LobbyInfoDTO(LobbyIdDTO):
     leader_id: UUID
 
 
-class LobbyUserInfoDTO(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: UUID
-    username: str
-    is_leader: bool
-
-
 class GameInfoDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -106,3 +98,12 @@ class EntryIdDTO(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+
+
+class GameIdPayloadDTO(BaseModel):
+    id: UUID
+
+
+class GameStartEventDTO(BaseModel):
+    event: Literal["game_start"]
+    data: GameIdPayloadDTO
