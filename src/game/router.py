@@ -8,7 +8,7 @@ from game.schemas import LobbyIdDTO, GameStartEventDTO, \
     GameIdPayloadDTO
 from game.services.game import GameService
 from game.services.lobby import LobbyService
-from managers import ws_manager
+from managers import lobby_ws_manager, game_ws_manager
 from schemas import ErrorEventDTO
 
 
@@ -31,31 +31,55 @@ async def lobby_ws(
     user: WSAuthenticatedUserDep,
     uow: UOWDep,
 ):
-    user_id = str(user.id)
-    await ws_manager.connect_to_lobby(websocket, user_id, lobby_id)
+    await lobby_ws_manager.connect(websocket, user, lobby_id)
     try:
         while True:
             message = await websocket.receive_json()
             event = message.get("event")
             if event == "ready":
-                await ws_manager.add_user_to_ready_list(user_id, lobby_id)
-                await ws_manager.broadcast_to_lobby_ready_users(lobby_id)
-                player_ids = await ws_manager.get_lobby_user_ids(lobby_id)
+                await lobby_ws_manager.add_user_to_ready_list(user.id, lobby_id)
+                await lobby_ws_manager.broadcast_ready_users(lobby_id)
+                player_ids = await lobby_ws_manager.get_user_ids(lobby_id)
                 players = await UserService(uow).get_users_by_ids(player_ids)
-                if await ws_manager.is_lobby_ready(lobby_id):
+                if await lobby_ws_manager.is_ready(lobby_id):
                     game_info = await GameService(uow).create_game(
                         players
                     )
-                    await ws_manager.broadcast_to_lobby(lobby_id, GameStartEventDTO(
+                    await lobby_ws_manager.broadcast(lobby_id, GameStartEventDTO(
                         event="game_start",
                         data=GameIdPayloadDTO(id=game_info.id)
                     ))
             else:
-                await ws_manager.send_to_user(
-                    user_id,
+                await lobby_ws_manager.send_to_user(
+                    user.id,
                     ErrorEventDTO(
                         event="error", data={"message": "Invalid event type"}
                     ),
                 )
     except WebSocketDisconnect:
-        await ws_manager.disconnect(user_id, lobby_id)
+        await lobby_ws_manager.disconnect(user.id, lobby_id)
+
+
+@ws_router.websocket("/games/{game_id}")
+async def game_ws(
+    websocket: WebSocket,
+    game_id: UUID,
+    user: WSAuthenticatedUserDep,
+    uow: UOWDep,
+):
+    await game_ws_manager.connect(websocket, user.id, game_id)
+    try:
+        while True:
+            message = await websocket.receive_json()
+            event = message.get("event")
+            if event == "move":
+                pass
+            else:
+                await game_ws_manager.send_to_user(
+                    user.id,
+                    ErrorEventDTO(
+                        event="error", data={"message": "Invalid event type"}
+                    ),
+                )
+    except WebSocketDisconnect:
+        await game_ws_manager.disconnect(user.id, game_id)

@@ -16,7 +16,7 @@ class RegistrationService:
         try:
             async with self._uof:
                 new_user = await self._create_user(
-                    user.username, user.email, hashed_password
+                    user.username, str(user.email), hashed_password
                 )
                 await self._uof.commit()
         except IntegrityError:

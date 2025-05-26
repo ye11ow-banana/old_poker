@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import UUID, ForeignKey, UniqueConstraint, event
+from sqlalchemy import UUID, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from auth.models import User

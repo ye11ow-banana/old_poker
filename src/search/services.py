@@ -31,7 +31,6 @@ class UserSearchService(ISearchService):
             )
             users = await self._uow.users.get_paginated_all(
                 pagination=self._pagination,
-                returns=("id", "username", "email"),
                 username=filter_obj.username,
             )
             users = [user for user in users if user.id != current_user.id]

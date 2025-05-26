@@ -2,7 +2,7 @@ from fastapi import APIRouter
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 
 from dependencies import WSAuthenticatedUserDep, UOWDep
-from managers import ws_manager
+from managers import notification_ws_manager
 from notification.ws_events import EVENT_MAP
 from schemas import ErrorEventDTO
 
@@ -15,21 +15,20 @@ async def notifications_ws(
     uow: UOWDep,
     user: WSAuthenticatedUserDep,
 ):
-    user_id = str(user.id)
-    await ws_manager.connect_to_notification(user_id, websocket)
+    await notification_ws_manager.connect(user.id, websocket)
     try:
         while True:
             data: dict = await websocket.receive_json()
             event = data.get("event")
             payload = data.get("data", {})
             try:
-                await EVENT_MAP[event](ws_manager, user_id, payload, uow)
+                await EVENT_MAP[event](notification_ws_manager, user.id, payload, uow)
             except KeyError:
-                await ws_manager.send_to_user(
-                    user_id,
+                await notification_ws_manager.send_to_user(
+                    user.id,
                     ErrorEventDTO(
                         event="error", data={"message": "Invalid event type"}
                     ),
                 )
     except WebSocketDisconnect:
-        await ws_manager.disconnect(user_id)
+        await notification_ws_manager.disconnect(user.id)

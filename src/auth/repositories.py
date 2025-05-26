@@ -92,7 +92,7 @@ class UserRepository(SQLAlchemyRepository):
         res = await self._session.execute(query)
         return [UserInfoDTO.model_validate(friend) for friend in res.all()]
 
-    async def get_by_ids(self, ids: Sequence[str]) -> list[UserInfoDTO]:
+    async def get_by_ids(self, ids: Sequence[UUID]) -> list[UserInfoDTO]:
         query = select(self.model).where(self.model.id.in_(ids))
         res = await self._session.execute(query)
         return [
@@ -103,7 +103,7 @@ class UserRepository(SQLAlchemyRepository):
 class FriendshipRepository(SQLAlchemyRepository):
     model = models.Friendship
 
-    async def accept_friend_request(self, /, user_id: str, friend_id: str) -> None:
+    async def accept_friend_request(self, /, user_id: UUID, friend_id: UUID) -> None:
         try:
             await self.add(
                 left_user_id=user_id,

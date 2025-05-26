@@ -155,7 +155,12 @@ class GameService:
                 used_cards.add(card)
             users_with_cards.append(
                 UserCardListDTO(
-                    id=player.id, username=player.username, email=player.email, cards=cards
+                    id=player.id,
+                    username=player.username,
+                    email=player.email,
+                    elo=player.elo,
+                    created_at=player.created_at,
+                    cards=cards,
                 )
             )
         return users_with_cards, used_cards

@@ -60,9 +60,7 @@ class JWTAuthenticationService(IAuthenticationService):
     async def get_current_user(self, token: str) -> UserInfoDTO:
         try:
             async with self._uof:
-                db_user = await self._get_db_user_by_jwt(
-                    token, returns=("id", "username", "email")
-                )
+                db_user = await self._get_db_user_by_jwt(token)
         except JWTError:
             raise AuthenticationException("Could not validate credentials")
         return db_user.to_user_info()

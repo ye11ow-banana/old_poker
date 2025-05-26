@@ -1,11 +1,12 @@
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel
 
 
 class FriendRequestPayloadDTO(BaseModel):
-    inviter_id: str
-    invitee_id: str
+    inviter_id: UUID
+    invitee_id: UUID
 
 
 class FriendResponsePayloadDTO(FriendRequestPayloadDTO):
@@ -18,9 +19,9 @@ class FriendEventDTO(BaseModel):
 
 
 class LobbyInvitePayloadDTO(BaseModel):
-    inviter_id: str
-    invitee_id: str
-    lobby_id: str
+    inviter_id: UUID
+    invitee_id: UUID
+    lobby_id: UUID
 
 
 class LobbyEventDTO(BaseModel):

@@ -46,6 +46,8 @@ class LobbyRepository(SQLAlchemyRepository):
                 id=player.id,
                 username=player.username,
                 email=player.email,
+                elo=player.elo,
+                created_at=player.created_at,
             )
             for player in res.fetchall()
         ]

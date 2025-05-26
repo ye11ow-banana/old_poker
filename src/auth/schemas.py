@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
@@ -21,6 +22,8 @@ class UserInfoDTO(BaseModel):
     id: UUID
     username: str
     email: str
+    elo: int
+    created_at: datetime
 
 
 class UserInDBDTO(BaseModel):
@@ -29,6 +32,8 @@ class UserInDBDTO(BaseModel):
     id: UUID | None = None
     username: str | None = None
     email: str | None = None
+    elo: int | None = None
+    created_at: datetime | None = None
     hashed_password: str | None = None
 
     def to_user_info(self) -> UserInfoDTO:

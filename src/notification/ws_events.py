@@ -1,7 +1,9 @@
+from uuid import UUID
+
 from pydantic import ValidationError
 
 from auth.services.friend import M2MFriendService
-from managers import WSConnectionManager
+from managers import notification_ws_manager
 from notification.schemas import (
     FriendRequestPayloadDTO,
     FriendResponsePayloadDTO,
@@ -12,7 +14,7 @@ from unitofwork import IUnitOfWork
 
 
 async def lobby_invite(
-    ws_manager: WSConnectionManager, user_id: str, payload: dict, *args, **kwargs
+    ws_manager: notification_ws_manager, user_id: UUID, payload: dict, *args, **kwargs
 ):
     try:
         data = LobbyInvitePayloadDTO(**payload | {"inviter_id": user_id})
@@ -30,7 +32,7 @@ async def lobby_invite(
 
 
 async def friend_request(
-    ws_manager: WSConnectionManager, user_id: str, payload: dict, *args, **kwargs
+    ws_manager: notification_ws_manager, user_id: UUID, payload: dict, *args, **kwargs
 ) -> None:
     try:
         data = FriendRequestPayloadDTO(**payload | {"inviter_id": user_id})
@@ -49,7 +51,7 @@ async def friend_request(
 
 
 async def friend_response(
-    ws_manager: WSConnectionManager, user_id: str, payload: dict, uow: IUnitOfWork
+    ws_manager: notification_ws_manager, user_id: UUID, payload: dict, uow: IUnitOfWork
 ):
     try:
         data = FriendResponsePayloadDTO(**payload | {"invitee_id": user_id})
