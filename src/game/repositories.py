@@ -68,6 +68,9 @@ class GameRepository(SQLAlchemyRepository):
                 models.Round.id,
                 auth_models.User.id,
                 auth_models.User.username,
+                auth_models.User.email,
+                auth_models.User.elo,
+                auth_models.User.created_at,
                 models.Card.id,
                 models.Card.suit,
                 models.Card.value,
@@ -92,13 +95,16 @@ class GameRepository(SQLAlchemyRepository):
                 round_id=player[0],
                 user_id=player[1],
                 username=player[2],
-                card_id=player[3],
-                suit=player[4].value if player[4] is not None else None,
-                value=player[5],
-                entry_id=player[6],
-                trump_suit=player[7].value if player[7] is not None else None,
-                trump_value=player[8],
-                opening_player_id=player[9],
+                email=player[3],
+                elo=player[4],
+                created_at=player[5],
+                card_id=player[6],
+                suit=player[7].value if player[7] is not None else None,
+                value=player[8],
+                entry_id=player[9],
+                trump_suit=player[10].value if player[10] is not None else None,
+                trump_value=player[11],
+                opening_player_id=player[12],
             )
             for player in res.fetchall()
         ]
@@ -106,6 +112,17 @@ class GameRepository(SQLAlchemyRepository):
 
 class GamePlayerRepository(SQLAlchemyRepository):
     model = models.GamePlayer
+
+    async def is_player(
+        self, /, user_id: UUID, game_id: UUID
+    ) -> bool:
+        query = (
+            select(self.model)
+            .filter_by(user_id=user_id, game_id=game_id)
+            .limit(1)
+        )
+        res = await self._session.execute(query)
+        return res.scalar() is not None
 
 
 class RoundRepository(SQLAlchemyRepository):

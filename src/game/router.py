@@ -4,8 +4,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from auth.services.user import UserService
 from dependencies import AuthenticatedUserDep, UOWDep, WSAuthenticatedUserDep
-from game.schemas import LobbyIdDTO, GameStartEventDTO, \
-    GameIdPayloadDTO
+from game.schemas import LobbyIdDTO, GameStartEventDTO, GameIdPayloadDTO
 from game.services.game import GameService
 from game.services.lobby import LobbyService
 from managers import lobby_ws_manager, game_ws_manager
@@ -60,14 +59,22 @@ async def lobby_ws(
         await lobby_ws_manager.disconnect(user.id, lobby_id)
 
 
-@ws_router.websocket("/games/{game_id}")
+@ws_router.websocket("/{game_id}")
 async def game_ws(
     websocket: WebSocket,
     game_id: UUID,
     user: WSAuthenticatedUserDep,
     uow: UOWDep,
 ):
-    await game_ws_manager.connect(websocket, user.id, game_id)
+    is_player = await GameService(uow).is_player(user.id, game_id)
+    if is_player:
+        await game_ws_manager.connect_player_to_game(websocket, user, game_id)
+        game_info = await GameService(uow).get_full_game_info(game_id)
+        await game_ws_manager.send_to_user(user.id, game_info)
+    else:
+        await game_ws_manager.connect_spectator_to_game(websocket, user, game_id)
+        game_info = await GameService(uow).get_full_spectator_game_info(game_id)
+        await game_ws_manager.send_to_user(user.id, game_info)
     try:
         while True:
             message = await websocket.receive_json()
@@ -82,4 +89,7 @@ async def game_ws(
                     ),
                 )
     except WebSocketDisconnect:
-        await game_ws_manager.disconnect(user.id, game_id)
+        if is_player:
+            await game_ws_manager.disconnect_player_from_game(user.id, game_id)
+        else:
+            await game_ws_manager.disconnect_spectator_from_game(user.id, game_id)

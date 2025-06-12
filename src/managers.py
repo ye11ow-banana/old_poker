@@ -130,11 +130,11 @@ class GameWSManager(WSManager):
         super().__init__()
         self._games: dict[UUID, dict[str, dict[UUID, UserInfoDTO]]] = {}
 
-    async def connect_player_to_game(self, user: UserInfoDTO, game_id: UUID) -> None:
-        await self._connect_user_to_game(user, game_id, "players")
+    async def connect_player_to_game(self, websocket: WebSocket, user: UserInfoDTO, game_id: UUID) -> None:
+        await self._connect_user_to_game(websocket, user, game_id, "players")
 
-    async def connect_spectator_to_game(self, user: UserInfoDTO, game_id: UUID) -> None:
-        await self._connect_user_to_game(user, game_id, "spectators")
+    async def connect_spectator_to_game(self, websocket: WebSocket, user: UserInfoDTO, game_id: UUID) -> None:
+        await self._connect_user_to_game(websocket, user, game_id, "spectators")
 
     async def disconnect_player_from_game(self, user_id: UUID, game_id: UUID) -> None:
         await self._disconnect_user_from_game(user_id, game_id, "players")
@@ -143,9 +143,11 @@ class GameWSManager(WSManager):
         await self._disconnect_user_from_game(user_id, game_id, "spectators")
 
     async def _connect_user_to_game(
-        self, user: UserInfoDTO, game_id: UUID, list_name: str
+        self, websocket: WebSocket, user: UserInfoDTO, game_id: UUID, list_name: str
     ) -> None:
+        await websocket.accept()
         async with self._lock:
+            self._connections[user.id] = websocket
             if game_id not in self._games:
                 self._games[game_id] = {"players": {}, "spectators": {}}
             self._games[game_id][list_name][user.id] = user
@@ -153,6 +155,7 @@ class GameWSManager(WSManager):
     async def _disconnect_user_from_game(
         self, user_id: UUID, game_id: UUID, list_name: str
     ) -> None:
+        await super().disconnect(user_id)
         async with self._lock:
             if game_id in self._games and list_name in self._games[game_id]:
                 self._games[game_id][list_name].pop(user_id, None)

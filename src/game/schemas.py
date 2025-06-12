@@ -63,6 +63,9 @@ class FlattenFullGameCardInfoDTO(BaseModel):
     round_id: UUID
     user_id: UUID
     username: str
+    email: str
+    elo: int
+    created_at: datetime
     card_id: UUID
     suit: Literal["H", "D", "C", "S"]
     value: int

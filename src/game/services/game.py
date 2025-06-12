@@ -58,6 +58,9 @@ class GameService:
                 FullUserCardInfoDTO(
                     id=info.user_id,
                     username=info.username,
+                    email=info.email,
+                    elo=info.elo,
+                    created_at=info.created_at,
                     cards=[
                         card
                         for card in user_cards
@@ -137,6 +140,10 @@ class GameService:
                     )
             dealer = opening_player
             opening_player = next(circular_players_generator)
+
+    async def is_player(self, user_id: UUID, game_id: UUID) -> bool:
+        async with self._uow:
+            return await self._uow.game_players.is_player(user_id, game_id)
 
     @staticmethod
     def _generate_cards_for_round(
