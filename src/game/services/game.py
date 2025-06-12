@@ -1,3 +1,4 @@
+import asyncio
 import random
 from typing import Generator, Literal, Sequence
 from uuid import UUID
@@ -79,6 +80,10 @@ class GameService:
             trump_suit=flatten_info_list[0].trump_suit,
             trump_value=flatten_info_list[0].trump_value,
         )
+
+    async def get_full_spectator_game_info(self, game_id: UUID) -> FullGameCardInfoDTO:
+        await asyncio.sleep(60 * 5)
+        return await self.get_full_game_info(game_id)
 
     async def create_game(
         self, players: list[UserInfoDTO]
