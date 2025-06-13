@@ -5,6 +5,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 
 from auth.schemas import UserInfoDTO
+from game.schemas import FullGameCardInfoEventDTO, NewWatcherEventDTO
 from notification.schemas import LobbyEventDTO, FriendEventDTO
 from schemas import ErrorEventDTO
 
@@ -17,7 +18,7 @@ class WSManager:
     async def send_to_user(
         self,
         user_id: UUID,
-        data: LobbyEventDTO | FriendEventDTO | ErrorEventDTO,
+        data: LobbyEventDTO | FriendEventDTO | FullGameCardInfoEventDTO | ErrorEventDTO,
     ) -> None:
         async with self._lock:
             ws = self._connections.get(user_id)
@@ -141,6 +142,36 @@ class GameWSManager(WSManager):
 
     async def disconnect_spectator_from_game(self, user_id: UUID, game_id: UUID) -> None:
         await self._disconnect_user_from_game(user_id, game_id, "spectators")
+
+    async def broadcast_to_all(self, game_id: UUID, data: NewWatcherEventDTO) -> None:
+        """
+        Send a message to all users connected in a given game.
+        """
+        payload = jsonable_encoder(data.model_dump(by_alias=True))
+        async with self._lock:
+            websockets = [
+                self._connections.get(uid)
+                for uid in self._games.get(game_id, {}).get("players", {}).keys()
+            ] + [
+                self._connections.get(uid)
+                for uid in self._games.get(game_id, {}).get("spectators", {}).keys()
+            ]
+        coroutines = [ws.send_json(payload) for ws in websockets if ws]
+        results = await asyncio.gather(*coroutines, return_exceptions=True)
+        for i, result in enumerate(results):
+            if isinstance(result, (WebSocketDisconnect, RuntimeError)):
+                try:
+                    failed_user = list(self._games.get(game_id, {}).get("players", {}).keys())[i]
+                    await self.disconnect_player_from_game(failed_user, game_id)
+                except IndexError:
+                    failed_user = list(self._games.get(game_id, {}).get("spectators", {}).keys())[i - len(self._games.get(game_id, {}).get("players", {}))]
+                    await self.disconnect_spectator_from_game(failed_user, game_id)
+
+    def get_users(self, game_id: UUID, list_name: str) -> list[UserInfoDTO]:
+        """
+        Get users from a specific list (players or spectators) in a game.
+        """
+        return list(self._games.get(game_id, {}).get(list_name, {}).values())
 
     async def _connect_user_to_game(
         self, websocket: WebSocket, user: UserInfoDTO, game_id: UUID, list_name: str

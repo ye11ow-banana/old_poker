@@ -110,3 +110,13 @@ class GameIdPayloadDTO(BaseModel):
 class GameStartEventDTO(BaseModel):
     event: Literal["game_start"]
     data: GameIdPayloadDTO
+
+
+class FullGameCardInfoEventDTO(BaseModel):
+    event: Literal["full_game_card_info"]
+    data: FullGameCardInfoDTO
+
+
+class NewWatcherEventDTO(BaseModel):
+    event: Literal["new_watcher"]
+    data: list[UserInfoDTO]

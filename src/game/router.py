@@ -4,10 +4,12 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from auth.services.user import UserService
 from dependencies import AuthenticatedUserDep, UOWDep, WSAuthenticatedUserDep
-from game.schemas import LobbyIdDTO, GameStartEventDTO, GameIdPayloadDTO
+from game.schemas import LobbyIdDTO, GameStartEventDTO, GameIdPayloadDTO, \
+    NewWatcherEventDTO
 from game.services.game import GameService
 from game.services.lobby import LobbyService
 from managers import lobby_ws_manager, game_ws_manager
+from game.schemas import FullGameCardInfoEventDTO
 from schemas import ErrorEventDTO
 
 
@@ -70,17 +72,40 @@ async def game_ws(
     if is_player:
         await game_ws_manager.connect_player_to_game(websocket, user, game_id)
         game_info = await GameService(uow).get_full_game_info(game_id)
-        await game_ws_manager.send_to_user(user.id, game_info)
     else:
         await game_ws_manager.connect_spectator_to_game(websocket, user, game_id)
+        await game_ws_manager.broadcast_to_all(
+            game_id,
+            NewWatcherEventDTO(
+                event="new_watcher",
+                data=game_ws_manager.get_users(game_id, "spectators"),
+            ),
+        )
         game_info = await GameService(uow).get_full_spectator_game_info(game_id)
-        await game_ws_manager.send_to_user(user.id, game_info)
+    await game_ws_manager.send_to_user(
+        user.id,
+        FullGameCardInfoEventDTO(
+            event="full_game_card_info",
+            data=game_info,
+        )
+    )
     try:
         while True:
             message = await websocket.receive_json()
             event = message.get("event")
-            if event == "move":
+            if event == "vzyatka":
                 pass
+            elif event == "move":
+                if not is_player:
+                    await game_ws_manager.send_to_user(
+                        user.id,
+                        ErrorEventDTO(
+                            event="error",
+                            data={
+                                "message": "You are connected as a spectator, you cannot play."}
+                        ),
+                    )
+                    continue
             else:
                 await game_ws_manager.send_to_user(
                     user.id,
