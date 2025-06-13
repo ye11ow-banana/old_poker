@@ -5,11 +5,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from auth.router import router as router_auth
-from game.router import router as router_game, ws_router as ws_router_game
+from game.router import router as router_game
+from game.router import ws_router as ws_router_game
 from notification.router import ws_router as ws_router_notification
+from schemas import (
+    ErrorResponseDTO,
+    MessageErrorResponseDTO,
+    PydanticErrorResponseDTO,
+)
 from search.router import router as router_search
-from schemas import (ErrorResponseDTO, MessageErrorResponseDTO,
-                     PydanticErrorResponseDTO)
 from utils import PydanticConvertor
 
 app = FastAPI(

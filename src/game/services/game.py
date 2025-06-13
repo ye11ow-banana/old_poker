@@ -5,10 +5,16 @@ from uuid import UUID
 
 from auth.schemas import UserInfoDTO
 from game.models import Suit
-from game.schemas import (CardDTO, FullCardInfoDTO, FullEntryCardInfoDTO,
-                          FullGameCardInfoDTO, FullUserCardInfoDTO,
-                          GameInfoDTO, ProcessCardDTO,
-                          UserCardListDTO)
+from game.schemas import (
+    CardDTO,
+    FullCardInfoDTO,
+    FullEntryCardInfoDTO,
+    FullGameCardInfoDTO,
+    FullUserCardInfoDTO,
+    GameInfoDTO,
+    ProcessCardDTO,
+    UserCardListDTO,
+)
 from unitofwork import IUnitOfWork
 
 CARDS = {
@@ -81,13 +87,13 @@ class GameService:
             trump_value=flatten_info_list[0].trump_value,
         )
 
-    async def get_full_spectator_game_info(self, game_id: UUID) -> FullGameCardInfoDTO:
+    async def get_full_spectator_game_info(
+        self, game_id: UUID
+    ) -> FullGameCardInfoDTO:
         await asyncio.sleep(60 * 5)
         return await self.get_full_game_info(game_id)
 
-    async def create_game(
-        self, players: list[UserInfoDTO]
-    ) -> GameInfoDTO:
+    async def create_game(self, players: list[UserInfoDTO]) -> GameInfoDTO:
         async with self._uow:
             game = await self._uow.games.add(
                 type="MULTIPLAYER",
@@ -163,7 +169,9 @@ class GameService:
     async def bid(self, user_id: UUID, game_id: UUID, bid: int) -> None:
         async with self._uow:
             current_round = await self._uow.rounds.get_current_round(game_id)
-            current_dealing = await self._uow.dealings.get_current_dealing(current_round.id, user_id)
+            current_dealing = await self._uow.dealings.get_current_dealing(
+                current_round.id, user_id
+            )
             await self._uow.dealings.update(
                 {"id": current_dealing.id},
                 bid=bid,

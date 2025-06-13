@@ -6,8 +6,12 @@ from sqlalchemy import select
 from auth import models as auth_models
 from auth.schemas import UserInfoDTO
 from game import models
-from game.schemas import (EntryIdDTO, FlattenFullGameCardInfoDTO, LobbyIdDTO,
-                          LobbyInfoDTO)
+from game.schemas import (
+    EntryIdDTO,
+    FlattenFullGameCardInfoDTO,
+    LobbyIdDTO,
+    LobbyInfoDTO,
+)
 from repository import SQLAlchemyRepository
 
 
@@ -102,7 +106,9 @@ class GameRepository(SQLAlchemyRepository):
                 suit=player[7].value if player[7] is not None else None,
                 value=player[8],
                 entry_id=player[9],
-                trump_suit=player[10].value if player[10] is not None else None,
+                trump_suit=player[10].value
+                if player[10] is not None
+                else None,
                 trump_value=player[11],
                 opening_player_id=player[12],
             )
@@ -113,9 +119,7 @@ class GameRepository(SQLAlchemyRepository):
 class GamePlayerRepository(SQLAlchemyRepository):
     model = models.GamePlayer
 
-    async def is_player(
-        self, /, user_id: UUID, game_id: UUID
-    ) -> bool:
+    async def is_player(self, /, user_id: UUID, game_id: UUID) -> bool:
         query = (
             select(self.model)
             .filter_by(user_id=user_id, game_id=game_id)

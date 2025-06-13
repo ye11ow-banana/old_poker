@@ -4,14 +4,18 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from auth.services.user import UserService
 from dependencies import AuthenticatedUserDep, UOWDep, WSAuthenticatedUserDep
-from game.schemas import LobbyIdDTO, GameStartEventDTO, GameIdPayloadDTO, \
-    NewWatcherEventDTO, BidEventDTO
+from game.schemas import (
+    BidEventDTO,
+    FullGameCardInfoEventDTO,
+    GameIdPayloadDTO,
+    GameStartEventDTO,
+    LobbyIdDTO,
+    NewWatcherEventDTO,
+)
 from game.services.game import GameService
 from game.services.lobby import LobbyService
-from managers import lobby_ws_manager, game_ws_manager
-from game.schemas import FullGameCardInfoEventDTO
+from managers import game_ws_manager, lobby_ws_manager
 from schemas import ErrorEventDTO
-
 
 router = APIRouter(prefix="/games", tags=["Game"])
 ws_router = APIRouter(prefix="/ws/games", tags=["WS Game"])
@@ -38,18 +42,21 @@ async def lobby_ws(
             message = await websocket.receive_json()
             event = message.get("event")
             if event == "ready":
-                await lobby_ws_manager.add_user_to_ready_list(user.id, lobby_id)
+                await lobby_ws_manager.add_user_to_ready_list(
+                    user.id, lobby_id
+                )
                 await lobby_ws_manager.broadcast_ready_users(lobby_id)
                 player_ids = await lobby_ws_manager.get_user_ids(lobby_id)
                 players = await UserService(uow).get_users_by_ids(player_ids)
                 if await lobby_ws_manager.is_ready(lobby_id):
-                    game_info = await GameService(uow).create_game(
-                        players
+                    game_info = await GameService(uow).create_game(players)
+                    await lobby_ws_manager.broadcast(
+                        lobby_id,
+                        GameStartEventDTO(
+                            event="game_start",
+                            data=GameIdPayloadDTO(id=game_info.id),
+                        ),
                     )
-                    await lobby_ws_manager.broadcast(lobby_id, GameStartEventDTO(
-                        event="game_start",
-                        data=GameIdPayloadDTO(id=game_info.id)
-                    ))
             else:
                 await lobby_ws_manager.send_to_user(
                     user.id,
@@ -73,7 +80,9 @@ async def game_ws(
         await game_ws_manager.connect_player_to_game(websocket, user, game_id)
         game_info = await GameService(uow).get_full_game_info(game_id)
     else:
-        await game_ws_manager.connect_spectator_to_game(websocket, user, game_id)
+        await game_ws_manager.connect_spectator_to_game(
+            websocket, user, game_id
+        )
         await game_ws_manager.broadcast_to_all(
             game_id,
             NewWatcherEventDTO(
@@ -81,13 +90,15 @@ async def game_ws(
                 data=game_ws_manager.get_users(game_id, "spectators"),
             ),
         )
-        game_info = await GameService(uow).get_full_spectator_game_info(game_id)
+        game_info = await GameService(uow).get_full_spectator_game_info(
+            game_id
+        )
     await game_ws_manager.send_to_user(
         user.id,
         FullGameCardInfoEventDTO(
             event="full_game_card_info",
             data=game_info,
-        )
+        ),
     )
     try:
         while True:
@@ -99,19 +110,24 @@ async def game_ws(
                     ErrorEventDTO(
                         event="error",
                         data={
-                            "message": "You are connected as a spectator, you cannot play."}
+                            "message": "You are connected as a spectator, you cannot play."
+                        },
                     ),
                 )
                 continue
             if event == "bid":
                 bid = message.get("bid", 0)
-                card_count = await GameService(uow).get_current_round_card_count(game_id)
+                card_count = await GameService(
+                    uow
+                ).get_current_round_card_count(game_id)
                 if bid > card_count:
                     await game_ws_manager.send_to_user(
                         user.id,
                         ErrorEventDTO(
                             event="error",
-                            data={"message": "Bid must be less than or equal to the current max bid."}
+                            data={
+                                "message": "Bid must be less than or equal to the current max bid."
+                            },
                         ),
                     )
                     continue
@@ -136,4 +152,6 @@ async def game_ws(
         if is_player:
             await game_ws_manager.disconnect_player_from_game(user.id, game_id)
         else:
-            await game_ws_manager.disconnect_spectator_from_game(user.id, game_id)
+            await game_ws_manager.disconnect_spectator_from_game(
+                user.id, game_id
+            )

@@ -47,7 +47,5 @@ class LobbyService:
         except IntegrityError as e:
             raise ValueError(str(e))
 
-    async def get_players_in_lobby(
-        self, lobby_id: UUID
-    ) -> list[UserInfoDTO]:
+    async def get_players_in_lobby(self, lobby_id: UUID) -> list[UserInfoDTO]:
         return await self._uow.lobbies.get_players_in_lobby(lobby_id=lobby_id)

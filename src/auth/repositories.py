@@ -103,7 +103,9 @@ class UserRepository(SQLAlchemyRepository):
 class FriendshipRepository(SQLAlchemyRepository):
     model = models.Friendship
 
-    async def accept_friend_request(self, /, user_id: UUID, friend_id: UUID) -> None:
+    async def accept_friend_request(
+        self, /, user_id: UUID, friend_id: UUID
+    ) -> None:
         try:
             await self.add(
                 left_user_id=user_id,

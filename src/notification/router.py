@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 
-from dependencies import WSAuthenticatedUserDep, UOWDep
+from dependencies import UOWDep, WSAuthenticatedUserDep
 from managers import notification_ws_manager
 from notification.ws_events import EVENT_MAP
 from schemas import ErrorEventDTO
@@ -22,7 +22,9 @@ async def notifications_ws(
             event = data.get("event")
             payload = data.get("data", {})
             try:
-                await EVENT_MAP[event](notification_ws_manager, user.id, payload, uow)
+                await EVENT_MAP[event](
+                    notification_ws_manager, user.id, payload, uow
+                )
             except KeyError:
                 await notification_ws_manager.send_to_user(
                     user.id,
