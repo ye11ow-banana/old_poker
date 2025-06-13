@@ -170,6 +170,7 @@ class Dealing(Base):
         UUID(as_uuid=True),
         ForeignKey("rounds.id", ondelete="CASCADE"),
     )
+    bid: Mapped[int | None]
 
     __table_args__ = (
         UniqueConstraint("user_id", "round_id", name="_user_round_uc"),
