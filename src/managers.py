@@ -5,7 +5,8 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.websockets import WebSocket, WebSocketDisconnect
 
 from auth.schemas import UserInfoDTO
-from game.schemas import FullGameCardInfoEventDTO, NewWatcherEventDTO
+from game.schemas import FullGameCardInfoEventDTO, NewWatcherEventDTO, \
+    BidEventDTO
 from notification.schemas import LobbyEventDTO, FriendEventDTO
 from schemas import ErrorEventDTO
 
@@ -143,7 +144,7 @@ class GameWSManager(WSManager):
     async def disconnect_spectator_from_game(self, user_id: UUID, game_id: UUID) -> None:
         await self._disconnect_user_from_game(user_id, game_id, "spectators")
 
-    async def broadcast_to_all(self, game_id: UUID, data: NewWatcherEventDTO) -> None:
+    async def broadcast_to_all(self, game_id: UUID, data: NewWatcherEventDTO | BidEventDTO) -> None:
         """
         Send a message to all users connected in a given game.
         """

@@ -120,3 +120,8 @@ class FullGameCardInfoEventDTO(BaseModel):
 class NewWatcherEventDTO(BaseModel):
     event: Literal["new_watcher"]
     data: list[UserInfoDTO]
+
+
+class BidEventDTO(BaseModel):
+    event: Literal["bid"]
+    data: dict[str, UUID | int]

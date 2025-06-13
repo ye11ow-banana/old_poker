@@ -150,6 +150,26 @@ class GameService:
         async with self._uow:
             return await self._uow.game_players.is_player(user_id, game_id)
 
+    async def get_current_round_card_count(self, game_id: UUID) -> int:
+        async with self._uow:
+            game_info = await self.get_full_game_info(game_id)
+        card_count = 0
+        for user in game_info.users:
+            card_count += len(user.cards)
+        if game_info.entry:
+            card_count += len(game_info.entry.cards)
+        return card_count / len(game_info.users)
+
+    async def bid(self, user_id: UUID, game_id: UUID, bid: int) -> None:
+        async with self._uow:
+            current_round = await self._uow.rounds.get_current_round(game_id)
+            current_dealing = await self._uow.dealings.get_current_dealing(current_round.id, user_id)
+            await self._uow.dealings.update(
+                {"id": current_dealing.id},
+                bid=bid,
+            )
+            await self._uow.commit()
+
     @staticmethod
     def _generate_cards_for_round(
         round_name: str, players: list[UserInfoDTO]

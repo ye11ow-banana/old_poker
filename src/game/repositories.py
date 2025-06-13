@@ -144,9 +144,29 @@ class RoundRepository(SQLAlchemyRepository):
             is_current_round=False,
         )
 
+    async def get_current_round(self, /, game_id: UUID) -> models.Round | None:
+        query = (
+            select(self.model)
+            .filter_by(game_id=game_id, is_current_round=True)
+            .limit(1)
+        )
+        res = await self._session.execute(query)
+        return res.scalar_one_or_none()
+
 
 class DealingRepository(SQLAlchemyRepository):
     model = models.Dealing
+
+    async def get_current_dealing(
+        self, /, round_id: UUID, user_id: UUID
+    ) -> models.Dealing | None:
+        query = (
+            select(self.model)
+            .filter_by(round_id=round_id, user_id=user_id)
+            .limit(1)
+        )
+        res = await self._session.execute(query)
+        return res.scalar_one_or_none()
 
 
 class CardRepository(SQLAlchemyRepository):

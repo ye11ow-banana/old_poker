@@ -5,7 +5,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from auth.services.user import UserService
 from dependencies import AuthenticatedUserDep, UOWDep, WSAuthenticatedUserDep
 from game.schemas import LobbyIdDTO, GameStartEventDTO, GameIdPayloadDTO, \
-    NewWatcherEventDTO
+    NewWatcherEventDTO, BidEventDTO
 from game.services.game import GameService
 from game.services.lobby import LobbyService
 from managers import lobby_ws_manager, game_ws_manager
@@ -93,19 +93,38 @@ async def game_ws(
         while True:
             message = await websocket.receive_json()
             event = message.get("event")
-            if event == "vzyatka":
-                pass
-            elif event == "move":
-                if not is_player:
+            if not is_player:
+                await game_ws_manager.send_to_user(
+                    user.id,
+                    ErrorEventDTO(
+                        event="error",
+                        data={
+                            "message": "You are connected as a spectator, you cannot play."}
+                    ),
+                )
+                continue
+            if event == "bid":
+                bid = message.get("bid", 0)
+                card_count = await GameService(uow).get_current_round_card_count(game_id)
+                if bid > card_count:
                     await game_ws_manager.send_to_user(
                         user.id,
                         ErrorEventDTO(
                             event="error",
-                            data={
-                                "message": "You are connected as a spectator, you cannot play."}
+                            data={"message": "Bid must be less than or equal to the current max bid."}
                         ),
                     )
                     continue
+                await GameService(uow).bid(user.id, game_id, bid)
+                await game_ws_manager.broadcast_to_all(
+                    game_id,
+                    BidEventDTO(
+                        event="bid",
+                        data={"user_id": user.id, "bid": bid},
+                    ),
+                )
+            elif event == "move":
+                pass
             else:
                 await game_ws_manager.send_to_user(
                     user.id,
