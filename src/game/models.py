@@ -171,6 +171,8 @@ class Dealing(Base):
         ForeignKey("rounds.id", ondelete="CASCADE"),
     )
     bid: Mapped[int | None]
+    actual_bid: Mapped[int | None]
+    score: Mapped[int | None] = mapped_column(default=None, nullable=True)
 
     __table_args__ = (
         UniqueConstraint("user_id", "round_id", name="_user_round_uc"),
