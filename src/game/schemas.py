@@ -41,6 +41,25 @@ class CardDTO(BaseModel):
     model_config = ConfigDict(frozen=True)
 
 
+class UserCardDTO(CardDTO):
+    id: UUID
+    user_id: UUID
+    entry_id: UUID | None = None
+
+    model_config = ConfigDict(frozen=True)
+
+
+class RoundInfoDTO(BaseModel):
+    id: UUID
+    trump_suit: Literal["H", "D", "C", "S"] | None = None
+    trump_value: int | None = None
+    round_name: str
+    round_number: int | None = None
+    is_current_round: bool = False
+    dealer_id: UUID
+    opening_player_id: UUID
+
+
 class UserCardListDTO(UserInfoDTO):
     cards: list[CardDTO]
 
@@ -54,6 +73,9 @@ class FullCardInfoDTO(BaseModel):
 
 
 class FullUserCardInfoDTO(UserInfoDTO):
+    bid: int | None = None
+    actual_bid: int | None = None
+    score: int | None = None
     cards: list[FullCardInfoDTO]
 
 
@@ -73,6 +95,9 @@ class FlattenFullGameCardInfoDTO(BaseModel):
     trump_suit: Literal["H", "D", "C", "S"] | None = None
     trump_value: int | None = None
     opening_player_id: UUID
+    bid: int | None = None
+    actual_bid: int | None = None
+    score: int | None = None
 
 
 class FullEntryCardInfoDTO(BaseModel):
@@ -113,7 +138,7 @@ class GameStartEventDTO(BaseModel):
 
 
 class FullGameCardInfoEventDTO(BaseModel):
-    event: Literal["full_game_card_info"]
+    event: Literal["full_game_card_info", "game_is_finished"]
     data: FullGameCardInfoDTO
 
 

@@ -1,9 +1,11 @@
 from uuid import UUID
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from pydantic import ValidationError
 
 from auth.services.user import UserService
 from dependencies import AuthenticatedUserDep, UOWDep, WSAuthenticatedUserDep
+from game.exceptions import GameIsFinishedError
 from game.schemas import (
     BidEventDTO,
     FullGameCardInfoEventDTO,
@@ -11,6 +13,7 @@ from game.schemas import (
     GameStartEventDTO,
     LobbyIdDTO,
     NewWatcherEventDTO,
+    ProcessCardDTO,
 )
 from game.services.game import GameService
 from game.services.lobby import LobbyService
@@ -140,7 +143,56 @@ async def game_ws(
                     ),
                 )
             elif event == "move":
-                pass
+                data = message.get("data", {})
+                try:
+                    process_card = ProcessCardDTO(
+                        **data
+                        | {"owner_id": user.id, "round_id": game_info.round_id}
+                    )
+                except ValidationError as e:
+                    await game_ws_manager.send_to_user(
+                        user.id,
+                        ErrorEventDTO(
+                            event="error",
+                            data={"message": f"Invalid data: {e}"},
+                        ),
+                    )
+                    continue
+                try:
+                    await GameService(uow).process_card(
+                        process_card,
+                        game_id,
+                    )
+                except GameIsFinishedError:
+                    await game_ws_manager.broadcast_to_all(
+                        game_id,
+                        FullGameCardInfoEventDTO(
+                            event="game_is_finished",
+                            data=await GameService(uow).get_full_game_info(
+                                game_id
+                            ),
+                        ),
+                    )
+                    continue
+                except Exception as e:
+                    await game_ws_manager.send_to_user(
+                        user.id,
+                        ErrorEventDTO(
+                            event="error",
+                            data={"message": str(e)},
+                        ),
+                    )
+                    raise
+                    continue
+                await game_ws_manager.broadcast_to_all(
+                    game_id,
+                    FullGameCardInfoEventDTO(
+                        event="full_game_card_info",
+                        data=await GameService(uow).get_full_game_info(
+                            game_id
+                        ),
+                    ),
+                )
             else:
                 await game_ws_manager.send_to_user(
                     user.id,

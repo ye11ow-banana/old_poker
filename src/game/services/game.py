@@ -1,9 +1,11 @@
 import asyncio
 import random
+from datetime import UTC, datetime
 from typing import Generator, Literal, Sequence
 from uuid import UUID
 
 from auth.schemas import UserInfoDTO
+from game.exceptions import GameIsFinishedError
 from game.models import Suit
 from game.schemas import (
     CardDTO,
@@ -13,6 +15,7 @@ from game.schemas import (
     FullUserCardInfoDTO,
     GameInfoDTO,
     ProcessCardDTO,
+    UserCardDTO,
     UserCardListDTO,
 )
 from unitofwork import IUnitOfWork
@@ -30,16 +33,62 @@ class GameService:
 
     async def process_card(self, card: ProcessCardDTO, game_id: UUID) -> None:
         async with self._uow:
+            dealing = await self._uow.dealings.get(
+                round_id=card.round_id,
+                user_id=card.owner_id,
+            )
             entry = await self._uow.entries.get_or_create(
                 round_id=card.round_id,
                 owner_id=card.owner_id,
+            )
+            dealing_cards = await self._uow.cards.get_cards_by_dealing_id(
+                dealing_id=dealing.id,
+            )
+            entry_cards = await self._uow.cards.get_cards_by_entry_id(
+                entry_id=entry.id,
+            )
+            card_orm = await self._uow.cards.get(
+                id=card.card_id,
+            )
+            current_card = UserCardDTO(
+                suit=card_orm.suit.value,
+                value=card_orm.value,
+                id=card_orm.id,
+                user_id=card.owner_id,
+                entry_id=entry.id,
+            )
+            round_ = await self._uow.rounds.get(
+                id=card.round_id,
+            )
+            self._check_card_validity(
+                card=current_card,
+                dealing_cards=dealing_cards,
+                entry_cards=entry_cards,
+                trump_suit=round_.trump_suit,
             )
             await self._uow.cards.update(
                 {"id": card.card_id},
                 entry_id=entry.id,
             )
+            owner_id = self._get_new_owner_id(
+                card=current_card,
+                entry_cards=entry_cards,
+                trump_suit=round_.trump_suit,
+            )
+            await self._uow.entries.update(
+                {"round_id": card.round_id},
+                owner_id=owner_id,
+            )
             if card.is_round_end:
-                await self._uow.rounds.make_new_current(game_id, card.round_id)
+                try:
+                    await self._actualize_round(game_id, round_.id)
+                    await self._uow.rounds.make_new_current(
+                        game_id, card.round_id
+                    )
+                except GameIsFinishedError:
+                    await self._finish_game(game_id, round_.id)
+                    await self._uow.commit()
+                    raise
             await self._uow.commit()
 
     async def get_full_game_info(self, game_id: UUID) -> FullGameCardInfoDTO:
@@ -68,6 +117,9 @@ class GameService:
                     email=info.email,
                     elo=info.elo,
                     created_at=info.created_at,
+                    bid=info.bid,
+                    actual_bid=info.actual_bid,
+                    score=info.score,
                     cards=[
                         card
                         for card in user_cards
@@ -141,7 +193,7 @@ class GameService:
             is_current_round = False
             for user in users_with_cards:
                 dealing = await self._uow.dealings.add(
-                    user_id=user.id, round_id=round_obj.id
+                    user_id=user.id, round_id=round_obj.id, score=0
                 )
                 for card in user.cards:
                     await self._uow.cards.add(
@@ -177,6 +229,122 @@ class GameService:
                 bid=bid,
             )
             await self._uow.commit()
+
+    async def _finish_game(self, game_id: UUID, round_id: UUID) -> None:
+        await self._uow.games.update(
+            {"id": game_id},
+            is_finished=True,
+            finished_at=datetime.now(UTC),
+        )
+        await self._update_ratings(game_id, round_id)
+
+    async def _update_ratings(self, game_id: UUID, round_id: UUID) -> None:
+        dealings = await self._uow.dealings.get_all(round_id=round_id)
+        max_score: int | None = None
+        for dealing in dealings:
+            if max_score is None or dealing.score > max_score:
+                max_score = dealing.score
+        for dealing in dealings:
+            if dealing.score == max_score:
+                await self._uow.game_winners.add(
+                    game_id=game_id,
+                    user_id=dealing.user_id,
+                )
+        for dealing in dealings:
+            user = await self._uow.users.get(id=dealing.user_id)
+            new_elo = user.elo + (dealing.score - max_score * 2 / 3) * 10
+            await self._uow.users.update(
+                {"id": user.id},
+                elo=new_elo,
+            )
+
+    @staticmethod
+    def _check_card_validity(
+        card: UserCardDTO,
+        dealing_cards: list[CardDTO],
+        entry_cards: list[CardDTO],
+        trump_suit: Literal["H", "D", "C", "S"] | None = None,
+    ) -> bool:
+        try:
+            first_card = entry_cards[0]
+        except IndexError:
+            return True
+        if card.suit != first_card.suit and card.suit != trump_suit:
+            is_valid = True
+            for dealing_card in dealing_cards:
+                if (
+                    dealing_card.suit == first_card.suit
+                    or dealing_card.suit == trump_suit
+                ):
+                    is_valid = False
+                    break
+            return is_valid
+        return True
+
+    @staticmethod
+    def _get_new_owner_id(
+        card: UserCardDTO,
+        entry_cards: list[CardDTO],
+        trump_suit: Literal["H", "D", "C", "S"] | None = None,
+    ) -> UUID:
+        if not entry_cards:
+            return card.user_id
+        owner_card = card
+        for entry_card in entry_cards:
+            if (
+                entry_card.suit == owner_card.suit
+                and entry_card.value > owner_card.value
+            ):
+                owner_card = entry_card
+            elif (
+                entry_card.suit == trump_suit and owner_card.suit != trump_suit
+            ):
+                owner_card = entry_card
+            elif (
+                entry_card.suit == trump_suit and owner_card.suit == trump_suit
+            ):
+                if entry_card.value > owner_card.value:
+                    owner_card = entry_card
+        return owner_card.user_id
+
+    async def _actualize_round(self, game_id: UUID, round_id: UUID) -> None:
+        entries = await self._uow.entries.get_all(round_id=round_id)
+        dealings = await self._uow.dealings.get_all(round_id=round_id)
+        user_bid_map = {}
+        for entry in entries:
+            if entry.owner_id in user_bid_map:
+                user_bid_map[entry.owner_id] += 1
+            else:
+                user_bid_map[entry.owner_id] = 1
+        for dealing in dealings:
+            if dealing.user_id in user_bid_map:
+                actual_bid = user_bid_map[dealing.user_id]
+            else:
+                actual_bid = 0
+            if actual_bid == dealing.bid and dealing.bid == 0:
+                score_addition = 5
+            elif actual_bid == dealing.bid:
+                score_addition = actual_bid * 10
+            elif actual_bid > dealing.bid:
+                score_addition = actual_bid
+            else:
+                score_addition = (actual_bid - dealing.bid) * 10
+            previous_round = await self._uow.rounds.get_previous_round(game_id)
+            if previous_round is None:
+                old_score = 0
+            else:
+                old_dealing = await self._uow.dealings.get(
+                    round_id=previous_round.id,
+                    user_id=dealing.user_id,
+                )
+                old_score = old_dealing.score if old_dealing else 0
+                old_score = old_score if old_score is not None else 0
+            score = old_score + score_addition
+            await self._uow.dealings.update(
+                {"id": dealing.id},
+                actual_bid=actual_bid,
+                score=score,
+            )
 
     @staticmethod
     def _generate_cards_for_round(

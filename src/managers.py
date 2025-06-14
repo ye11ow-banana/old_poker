@@ -233,9 +233,9 @@ class GameWSManager(WSManager):
         async with self._lock:
             if game_id in self._games and list_name in self._games[game_id]:
                 self._games[game_id][list_name].pop(user_id, None)
-                if not self._games[game_id][list_name]:
-                    del self._games[game_id][list_name]
-                if not self._games[game_id]:
+                if not self._games[game_id].get("players") and not self._games[
+                    game_id
+                ].get("spectators"):
                     del self._games[game_id]
 
 

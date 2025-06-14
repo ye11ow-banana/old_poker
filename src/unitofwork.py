@@ -8,6 +8,7 @@ from game.repositories import (
     EntryRepository,
     GamePlayerRepository,
     GameRepository,
+    GameWinnerRepository,
     LobbyPlayerRepository,
     LobbyRepository,
     RoundRepository,
@@ -21,6 +22,7 @@ class IUnitOfWork(ABC):
     lobby_players: LobbyPlayerRepository
     games: GameRepository
     game_players: GamePlayerRepository
+    game_winners: GameWinnerRepository
     rounds: RoundRepository
     dealings: DealingRepository
     cards: CardRepository
@@ -59,6 +61,7 @@ class UnitOfWork(IUnitOfWork):
         self.lobby_players = LobbyPlayerRepository(self._session)
         self.games = GameRepository(self._session)
         self.game_players = GamePlayerRepository(self._session)
+        self.game_winners = GameWinnerRepository(self._session)
         self.rounds = RoundRepository(self._session)
         self.dealings = DealingRepository(self._session)
         self.cards = CardRepository(self._session)

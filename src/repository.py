@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from datetime import datetime
 from typing import Sequence, Type
 from uuid import UUID
 
@@ -136,11 +137,10 @@ class SQLAlchemyRepository(IRepository):
         self,
         /,
         what_to_update: dict[str, str | int | UUID],
-        **data: str | int | UUID,
+        **data: str | int | UUID | datetime,
     ) -> None:
         stmt = update(self.model).filter_by(**what_to_update).values(**data)
         await self._session.execute(stmt)
-        await self._session.commit()
 
     async def get_last(
         self, /, returns: Sequence[str] | None = None, **data: str | int | UUID

@@ -6,11 +6,14 @@ from sqlalchemy import select
 from auth import models as auth_models
 from auth.schemas import UserInfoDTO
 from game import models
+from game.exceptions import GameIsFinishedError
 from game.schemas import (
+    CardDTO,
     EntryIdDTO,
     FlattenFullGameCardInfoDTO,
     LobbyIdDTO,
     LobbyInfoDTO,
+    RoundInfoDTO,
 )
 from repository import SQLAlchemyRepository
 
@@ -82,6 +85,9 @@ class GameRepository(SQLAlchemyRepository):
                 models.Round.trump_suit,
                 models.Round.trump_value,
                 models.Round.opening_player_id,
+                models.Dealing.bid,
+                models.Dealing.actual_bid,
+                models.Dealing.score,
             )
             .join(
                 models.Dealing, models.Dealing.user_id == auth_models.User.id
@@ -111,6 +117,9 @@ class GameRepository(SQLAlchemyRepository):
                 else None,
                 trump_value=player[11],
                 opening_player_id=player[12],
+                bid=player[13],
+                actual_bid=player[14],
+                score=player[15],
             )
             for player in res.fetchall()
         ]
@@ -129,29 +138,72 @@ class GamePlayerRepository(SQLAlchemyRepository):
         return res.scalar() is not None
 
 
+class GameWinnerRepository(SQLAlchemyRepository):
+    model = models.GameWinner
+
+
 class RoundRepository(SQLAlchemyRepository):
     model = models.Round
 
     async def make_new_current(self, /, game_id: UUID, round_id: UUID) -> None:
+        query = select(self.model.round_number).filter_by(id=round_id)
+        current_round_number = (
+            await self._session.execute(query)
+        ).scalar_one()
         query = (
             select(self.model.id)
-            .filter_by(game_id=game_id, is_current_round=False)
+            .filter_by(
+                game_id=game_id,
+                is_current_round=False,
+                round_number=current_round_number + 1,
+            )
             .order_by(self.model.round_number)
         )
         res = await self._session.execute(query)
-        await self.update(
-            {"id": res.first().id},
-            is_current_round=True,
-        )
+        new_current_round = res.first()
         await self.update(
             {"id": round_id},
             is_current_round=False,
         )
+        if new_current_round is None:
+            raise GameIsFinishedError
+        else:
+            await self.update(
+                {"id": new_current_round.id},
+                is_current_round=True,
+            )
 
     async def get_current_round(self, /, game_id: UUID) -> models.Round | None:
         query = (
             select(self.model)
             .filter_by(game_id=game_id, is_current_round=True)
+            .limit(1)
+        )
+        res = await self._session.execute(query)
+        return res.scalar_one_or_none()
+
+    async def get(
+        self, /, returns: Sequence[str] | None = None, **data: str | int | UUID
+    ) -> RoundInfoDTO:
+        round_ = await super().get(returns=returns, **data)
+        return RoundInfoDTO(
+            id=round_.id,
+            trump_suit=round_.trump_suit.value if round_.trump_suit else None,
+            trump_value=round_.trump_value if round_.trump_value else None,
+            round_name=round_.round_name,
+            round_number=round_.round_number,
+            is_current_round=round_.is_current_round,
+            dealer_id=round_.dealer_id,
+            opening_player_id=round_.opening_player_id,
+        )
+
+    async def get_previous_round(
+        self, /, game_id: UUID
+    ) -> models.Round | None:
+        query = (
+            select(self.model)
+            .filter_by(game_id=game_id, is_current_round=False)
+            .order_by(self.model.round_number.desc())
             .limit(1)
         )
         res = await self._session.execute(query)
@@ -175,6 +227,28 @@ class DealingRepository(SQLAlchemyRepository):
 
 class CardRepository(SQLAlchemyRepository):
     model = models.Card
+
+    async def get_cards_by_entry_id(self, /, entry_id: UUID) -> list[CardDTO]:
+        cards = await self.get_all(entry_id=entry_id)
+        return [
+            CardDTO(
+                suit=card.suit.value if card.suit else None,
+                value=card.value,
+            )
+            for card in cards
+        ]
+
+    async def get_cards_by_dealing_id(
+        self, /, dealing_id: UUID
+    ) -> list[CardDTO]:
+        cards = await self.get_all(dealing_id=dealing_id)
+        return [
+            CardDTO(
+                suit=card.suit.value if card.suit else None,
+                value=card.value,
+            )
+            for card in cards
+        ]
 
 
 class EntryRepository(SQLAlchemyRepository):
